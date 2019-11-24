@@ -179,6 +179,32 @@ def update_plot(update_indicator):
                        }
             }
 
+#
+# Update the available dates
+#
+@app.callback(Output('my-date-picker-single', 'min_date_allowed'),
+              [Input('uploaded-input-data-flag', 'children')])
+def update_dates_min(update_indicator):
+
+    return min(np.array(my_globals['pd_smbg']['deviceTime'],dtype='datetime64'))
+
+@app.callback(Output('my-date-picker-single', 'max_date_allowed'),
+              [Input('uploaded-input-data-flag', 'children')])
+def update_dates_max(update_indicator):
+
+    return max(np.array(my_globals['pd_smbg']['deviceTime'],dtype='datetime64'))
+
+@app.callback(Output('my-date-picker-single', 'initial_visible_month'),
+              [Input('uploaded-input-data-flag', 'children')])
+def update_dates_month(update_indicator):
+
+    return max(np.array(my_globals['pd_smbg']['deviceTime'],dtype='datetime64'))
+
+@app.callback(Output('my-date-picker-single', 'date'),
+              [Input('uploaded-input-data-flag', 'children')])
+def update_dates_day(update_indicator):
+
+    return max(np.array(my_globals['pd_smbg']['deviceTime'],dtype='datetime64'))
 
 app.title = 'Kurt Webpage'
 
