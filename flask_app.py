@@ -77,6 +77,11 @@ app.layout = html.Div(
                 ]
                  ),
 
+        html.Label('Insulin decay time (hr): '),
+        dcc.Input(id='insulin-decay-time', value='4', type='text'),
+        html.Label('Food decay time (hr): '),
+        dcc.Input(id='food-decay-time', value='2', type='text'),
+
         dash_table.DataTable(id='base_settings_table',
                              columns=[{"name": name, "id": str(i-1), "editable": (i!= 0)} for i,name in enumerate(SettingsTableFunctions.table_columns_base_settings)],
                              data=[],
@@ -116,10 +121,6 @@ app.layout = html.Div(
                 html.P('''*** "True basal rate" represents what your basal insulin should be, based on your sensitivity and liver glucose settings.'''),
                 ]),
 
-        html.Label('User-input values:'),
-        dcc.Input(id='my-id', value='initial value', type='text'),
-        html.Div(id='my-div'),
-
         html.Label('Slider:'),
         dcc.Slider(min=0,max=9,value=5,
                    marks={i: 'Label {}'.format(i) if i == 1 else str(i) for i in range(1, 9)},
@@ -148,6 +149,7 @@ app.layout = html.Div(
 def update_file(list_of_contents, list_of_names, list_of_dates):
 
     output = LoadNewFile.LoadNewFile(list_of_contents, list_of_names, list_of_dates, my_globals)
+    ManageSettings.LoadFromJsonData(my_globals)
 
     return output
 
@@ -201,14 +203,53 @@ def update_dates_day(update_indicator):
     return max(np.array(my_globals['pd_smbg']['deviceTime'],dtype='datetime64'))
 
 #
-# Check for new settings (from newly uploaded file) and update the base table
+# Update the base table
 #
 @app.callback(Output('base_settings_table', 'data'),
               [Input('uploaded-input-data-flag', 'children')])
 def update_base_settings(table):
 
-    ManageSettings.LoadFromJsonData(my_globals)
     return SettingsTableFunctions.UpdateBaseTable(my_globals)
+
+#
+# Update InsulinTa
+#
+@app.callback(Output('insulin-decay-time', 'value'),
+              [Input('uploaded-input-data-flag', 'children')])
+def update_insulin_ta_inpudata(not_used):
+
+    if not my_globals['current_setting'] :
+        return 4
+
+    return my_globals['current_setting'].getInsulinTaHrMidnight(0)
+
+#
+# User updates InsulinTa
+#
+@app.callback(Output('insulin-decay-time', 'type'),
+              [Input('insulin-decay-time', 'value')])
+def update_insulin_ta_user(ta):
+
+    if not my_globals['current_setting'] :
+        return 'text'
+
+    my_globals['current_setting'].setInsulinTa(ta)
+    print('Updated Insulin Ta to:',my_globals['current_setting'].getInsulinTaHrMidnight(0))
+    return 'text'
+
+#
+# User updates FoodTa
+#
+@app.callback(Output('food-decay-time', 'type'),
+              [Input('food-decay-time', 'value')])
+def update_food_ta_user(ta):
+
+    if not my_globals['current_setting'] :
+        return 'text'
+
+    my_globals['current_setting'].setFoodTa(ta)
+    print('Updated Food Ta to:',my_globals['current_setting'].getFoodTaHrMidnight(0))
+    return 'text'
 
 #
 # Update derived table
@@ -217,7 +258,7 @@ def update_base_settings(table):
               [Input('base_settings_table', 'data')])
 def update_derived_table(table):
 
-    return SettingsTableFunctions.UpdateDerivedTable(table)
+    return SettingsTableFunctions.UpdateDerivedTable(table,my_globals)
 
 
 app.title = 'Kurt Webpage'

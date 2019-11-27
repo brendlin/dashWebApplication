@@ -13,10 +13,6 @@ defaults_base = (('Insulin sens. (BG/u)',50),
                  ('',50),
                  ('Food sens. (BG/g)',3.33),
                  ('',3.33),
-                 ('Insulin decay (hr)',4),
-                 ('',4),
-                 ('Food decay (hr)',2),
-                 ('',2),
                  ('Liver glucose (BG/hr)',50),
                  ('',50))
 
@@ -38,10 +34,10 @@ def UpdateBaseTable(globals) :
         out_table.append(dict())
         out_table[-1][-1] = row[0]
 
-    fcns = ['InsulinSensitivity','FoodSensitivity','InsulinTa','FoodTa','LiverHourlyGlucose']
-    round_digits = [0,1,1,1,0]
-    sign = [-1,1,1,1,1]
-    for column in range(5) :
+    fcns = ['InsulinSensitivity','FoodSensitivity','LiverHourlyGlucose']
+    round_digits = [0,1,0]
+    sign = [-1,1,1]
+    for column in range(3) :
 
         for i in range(24) :
             on_the_hour = getattr(globals['current_setting'],'get%sHrMidnight'%(fcns[column]))(i)
@@ -61,18 +57,17 @@ def UpdateBaseTable(globals) :
     return out_table
 
 #------------------------------------------------------------------
-def UpdateDerivedTable(table):
+def UpdateDerivedTable(table,globals):
 
     print(table,file=sys.stdout)
 
     i_isens = 0
     i_fsens = 1
-    i_duration = 2
-    i_liver = 4
+    i_liver = 2
 
     # get the duration (needed for basal)
     # divide by 2 (peak is ta/2), multiply by 2 (1/2hr increments)
-    offset = int(float(table[i_duration]['0']))
+    offset = int(float(globals['current_setting'].getInsulinTaHrMidnight(0)))
 
     ret = []
 
