@@ -1,0 +1,3 @@
+[submodule "BGModel"]
+	path = BGModel
+	url = ../BGModel
