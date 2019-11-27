@@ -1,9 +1,10 @@
 from BGModel import Settings
 import datetime
 
-def LoadFromJsonData(data,globals) :
+def LoadFromJsonData(globals) :
 
     settings_frame = None
+    data = globals['global_df']
 
     if 'basal' in data.columns :
         settings_frame = data[(data['type'] == 'pumpSettings') & (data['basal'].notnull())]
@@ -26,7 +27,7 @@ def LoadFromJsonData(data,globals) :
 
     for i in reversed(range(len(settings_frame))) :
 
-        print('checking',settings_frame.iloc[i]['deviceTime'])
+        #print('checking',settings_frame.iloc[i]['deviceTime'])
 
         tmp_bas  = settings_frame.iloc[i]['basalSchedules']['standard']
         tmp_sens = settings_frame.iloc[i]['insulinSensitivity']
@@ -42,7 +43,7 @@ def LoadFromJsonData(data,globals) :
             last_carb = tmp_carb
             last_dur  = tmp_dur
 
-        print('New settings from',settings_frame.iloc[i]['deviceTime'])
+        #print('New settings from',settings_frame.iloc[i]['deviceTime'])
         deviceTime = settings_frame.iloc[i]['deviceTime']
 
         for j in settings_frame.iloc[i]['basalSchedules']['standard'] :
@@ -60,7 +61,7 @@ def LoadFromJsonData(data,globals) :
             timeOfDay_hr = datetime.timedelta(milliseconds=j['start']).total_seconds()/3600.
             settings_ric.AddSettingToSnapshot(deviceTime,timeOfDay_hr,round(j['amount'],2))
 
-        #print(settings_frame.iloc[i]['bolus']['calculator']['insulin']['duration'])
+        #print('duration:',settings_frame.iloc[i]['bolus']['calculator']['insulin']['duration'])
         settings_duration.AddSettingToSnapshot(deviceTime,0,settings_frame.iloc[i]['bolus']['calculator']['insulin']['duration'])
 
         the_userprofile = Settings.TrueUserProfile()
@@ -68,8 +69,10 @@ def LoadFromJsonData(data,globals) :
                                                  settings_ric.latestSettingsSnapshot())
         the_userprofile.AddHourlyGlucoseFromArrays(settings_basal.latestSettingsSnapshot(),
                                                    settings_duration.latestSettingsSnapshot())
+        the_userprofile.AddDurationFromArray(settings_duration.latestSettingsSnapshot())
         the_userprofile.Print()
         globals['bwz_settings'].append(the_userprofile)
+        globals['current_setting'] = globals['bwz_settings'][-1]
 
-    print('settings done.')
-
+    #print('settings done.')
+    return

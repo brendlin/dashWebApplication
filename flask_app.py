@@ -18,7 +18,6 @@ import io
 
 import numpy as np
 import dash_table
-import copy
 
 # Tools
 import ManageSettings
@@ -39,22 +38,7 @@ my_globals['global_df'] = 0
 my_globals['pd_smbg'] = 0
 my_globals['pd_settings'] = 0
 my_globals['bwz_settings'] = []
-
-table_columns_base_settings = ['Base Settings (editable)'] + list('%02d:00'%(a) for a in range(0,24))
-table_columns_derived_settings = copy.copy(table_columns_base_settings)
-table_columns_derived_settings[0] = 'Derived Settings'
-table_default_base_settings = []
-defaults_base = (('Insulin sens. (BG/u)',50),
-                 ('Food sens. (BG/g)',3.33),
-                 ('Insulin decay (hr)',4),
-                 ('Food decay (hr)',2),
-                 ('Liver glucose (BG/hr)',50))
-
-for row in defaults_base :
-    table_default_base_settings.append(dict())
-    table_default_base_settings[-1][-1] = row[0]
-    for i in range(24) :
-        table_default_base_settings[-1][i] = row[1]
+my_globals['current_setting'] = 0
 
 # for deployment, pass app.server (which is the actual flask app) to WSGI etc
 app = dash.Dash(external_stylesheets=external_stylesheets)
@@ -94,8 +78,8 @@ app.layout = html.Div(
                  ),
 
         dash_table.DataTable(id='base_settings_table',
-                             columns=[{"name": name, "id": str(i-1), "editable": (i!= 0)} for i,name in enumerate(table_columns_base_settings)],
-                             data=table_default_base_settings,
+                             columns=[{"name": name, "id": str(i-1), "editable": (i!= 0)} for i,name in enumerate(SettingsTableFunctions.table_columns_base_settings)],
+                             data=[],
                              style_header={'backgroundColor': 'rgb(230, 230, 230)',
                                            'fontWeight': 'bold'
                                            },
@@ -110,8 +94,8 @@ app.layout = html.Div(
 
         dash_table.DataTable(id='derived_settings_table',
                              editable=False,
-                             columns=[{"name": name, "id": str(i-1)} for i,name in enumerate(table_columns_derived_settings)],
-                             data=table_default_base_settings,
+                             columns=[{"name": name, "id": str(i-1)} for i,name in enumerate(SettingsTableFunctions.table_columns_derived_settings)],
+                             data=[],
                              style_header={'backgroundColor': 'rgb(230, 230, 230)',
                                            'fontWeight': 'bold',
                                            'color':'black',
@@ -165,11 +149,6 @@ def update_file(list_of_contents, list_of_names, list_of_dates):
 
     output = LoadNewFile.LoadNewFile(list_of_contents, list_of_names, list_of_dates, my_globals)
 
-    #
-    # Settings
-    #
-    ManageSettings.LoadFromJsonData(my_globals['global_df'],my_globals)
-
     return output
 
 #
@@ -220,6 +199,16 @@ def update_dates_month(update_indicator):
 def update_dates_day(update_indicator):
 
     return max(np.array(my_globals['pd_smbg']['deviceTime'],dtype='datetime64'))
+
+#
+# Check for new settings (from newly uploaded file) and update the base table
+#
+@app.callback(Output('base_settings_table', 'data'),
+              [Input('uploaded-input-data-flag', 'children')])
+def update_base_settings(table):
+
+    ManageSettings.LoadFromJsonData(my_globals)
+    return SettingsTableFunctions.UpdateBaseTable(my_globals)
 
 #
 # Update derived table
