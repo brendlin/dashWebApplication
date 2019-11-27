@@ -17,12 +17,13 @@ import datetime
 import io
 
 import numpy as np
-import pandas as pd
 import dash_table
 import copy
 
 # Tools
 import ManageSettings
+import LoadNewFile
+import SettingsTableFunctions
 
 # BG Classes
 from BGModel import BGActionClasses
@@ -154,30 +155,6 @@ app.layout = html.Div(
 #     return 'You\'ve entered "{}"'.format(input_value)
 
 #
-# How we parse the input file contents
-#
-def process_input_file(contents, filename, date):
-
-    content_type, content_string = contents.split(',')
-    decoded = base64.b64decode(content_string)
-
-    try:
-        if 'csv' in filename:
-            # Assume that the user uploaded a CSV file
-            my_globals['global_df'] = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
-        elif 'xls' in filename:
-            # Assume that the user uploaded an excel file
-            my_globals['global_df'] = pd.read_excel(io.BytesIO(decoded))
-        elif 'json' in filename :
-            my_globals['global_df'] = pd.read_json(io.BytesIO(decoded))
-
-    except Exception as e:
-        print(e,file=sys.stdout)
-        return 'There was an error processing this file.'
-
-    return 'Using new file, named {}'.format(filename)
-
-#
 # Upload callback (new)
 #
 @app.callback(Output('uploaded-input-data-flag', 'children'),
@@ -186,47 +163,14 @@ def process_input_file(contents, filename, date):
                State('upload-data', 'last_modified')])
 def update_file(list_of_contents, list_of_names, list_of_dates):
 
-    text_outputs = []
-
-    if list_of_contents is None:
-        # Use the default file
-        my_globals['global_df'] = pd.read_json('download.json')
-        list_of_names = ''
-        list_of_dates = ''
-        text_outputs = ['Using default file.']
-
-    else :
-
-        if type(list_of_contents) != type([]) :
-            list_of_contents = [list_of_contents]
-
-        if type(list_of_names) != type([]) :
-            list_of_names = [list_of_names]
-
-        if type(list_of_dates) != type([]) :
-            list_of_dates = [list_of_dates]
-
-        print('length of contents:',len(list_of_contents), file=sys.stdout)
-        print('list of filenames:',list_of_names, file=sys.stdout)
-        print('list of last_modified:',list_of_dates, file=sys.stdout)
-
-        text_outputs = list(process_input_file(c, n, d) for c, n, d in zip(list_of_contents, list_of_names, list_of_dates))
-
-        find_errors = list('error' in a for a in text_outputs)
-        if (True in find_errors) :
-            return text_outputs[find_errors.index(True)]
-
-    print('updating global_smbg',file=sys.stdout)
-
-    data = my_globals['global_df']
-    my_globals['pd_smbg'] = data[data['type'] == 'smbg'][['deviceTime', 'value']]
+    output = LoadNewFile.LoadNewFile(list_of_contents, list_of_names, list_of_dates, my_globals)
 
     #
     # Settings
     #
-    ManageSettings.LoadFromJsonData(data,my_globals)
+    ManageSettings.LoadFromJsonData(my_globals['global_df'],my_globals)
 
-    return '. '.join(text_outputs)
+    return output
 
 #
 # Update the plot
@@ -284,34 +228,7 @@ def update_dates_day(update_indicator):
               [Input('base_settings_table', 'data')])
 def update_derived_table(table):
 
-    print(table,file=sys.stdout)
-
-    i_isens = 0
-    i_fsens = 1
-    i_liver = 4
-
-    ret = []
-    ric = dict()
-    ric['-1'] = 'Carb-insulin ratio (g/u)'
-
-    basal = dict()
-    basal['-1'] = 'True basal rate (u/hr)'
-
-    for i in range(24) :
-        try :
-            ric[str(i)] = round(float(table[i_isens][str(i)])/float(table[i_fsens][str(i)]),1)
-        except (ValueError,TypeError) as e :
-            ric[str(i)] = 'ERR'
-
-        try :
-            basal[str(i)] = round(float(table[i_isens][str(i)])/float(table[i_liver][str(i)]),1)
-        except (ValueError,TypeError) as e :
-            basal[str(i)] = 'ERR'
-
-    ret.append(ric)
-    ret.append(basal)
-
-    return ret
+    return SettingsTableFunctions.UpdateDerivedTable(table)
 
 
 app.title = 'Kurt Webpage'
