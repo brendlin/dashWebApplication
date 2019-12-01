@@ -1,10 +1,12 @@
 import sys
 import pandas as pd
+import base64
+import io
 
 #
 # How we parse the input file contents
 #
-def process_input_file(contents, filename, date):
+def process_input_file(contents, filename, date, globals):
 
     content_type, content_string = contents.split(',')
     decoded = base64.b64decode(content_string)
@@ -12,12 +14,12 @@ def process_input_file(contents, filename, date):
     try:
         if 'csv' in filename:
             # Assume that the user uploaded a CSV file
-            my_globals['global_df'] = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
+            globals['global_df'] = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
         elif 'xls' in filename:
             # Assume that the user uploaded an excel file
-            my_globals['global_df'] = pd.read_excel(io.BytesIO(decoded))
+            globals['global_df'] = pd.read_excel(io.BytesIO(decoded))
         elif 'json' in filename :
-            my_globals['global_df'] = pd.read_json(io.BytesIO(decoded))
+            globals['global_df'] = pd.read_json(io.BytesIO(decoded))
 
     except Exception as e:
         print(e,file=sys.stdout)
@@ -53,7 +55,7 @@ def LoadNewFile(list_of_contents, list_of_names, list_of_dates, globals) :
         print('list of filenames:',list_of_names, file=sys.stdout)
         print('list of last_modified:',list_of_dates, file=sys.stdout)
 
-        text_outputs = list(process_input_file(c, n, d) for c, n, d in zip(list_of_contents, list_of_names, list_of_dates))
+        text_outputs = list(process_input_file(c, n, d, globals) for c, n, d in zip(list_of_contents, list_of_names, list_of_dates))
 
         find_errors = list('error' in a for a in text_outputs)
         if (True in find_errors) :

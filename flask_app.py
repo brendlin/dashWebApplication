@@ -12,9 +12,7 @@ import dash_core_components as dcc
 import dash_html_components as html
 import sys
 
-import base64
 import datetime
-import io
 
 import numpy as np
 import dash_table
@@ -65,11 +63,11 @@ app.layout = html.Div(
                                                 initial_visible_month=datetime.datetime(2017, 8, 5),
                                                 date=str(datetime.datetime(2017, 8, 25, 23, 59, 59))
                                                 ),
+                           html.Button('Show this day', id='show-this-day'),
+                           html.Button('Back to overview', id='overview-button'),
                            ]
                  ),
 
-        html.Button('Show this day', id='show-this-day'),
-        html.Button('Back to overview', id='overview-button'),
 
         html.Div(children = [
                 html.Hr(),  # horizontal line
@@ -81,10 +79,10 @@ app.layout = html.Div(
                 ]
                  ),
 
-        html.Label('Insulin decay time (hr): '),
-        dcc.Input(id='insulin-decay-time', value='4', type='text'),
-        html.Label('Food decay time (hr): '),
-        dcc.Input(id='food-decay-time', value='2', type='text'),
+        html.Label('Insulin decay time (hr): ',style={'width': '15%','display': 'inline-block'}),
+        dcc.Input(id='insulin-decay-time', value='4', type='text',style={'width': '5%','display': 'inline-block','align': 'left','marginRight':'5%'}),
+        html.Label('Food decay time (hr): ',style={'width': '15%','display': 'inline-block'}),
+        dcc.Input(id='food-decay-time', value='2', type='text',style={'width': '5%','display': 'inline-block'}),
 
         dash_table.DataTable(id='base_settings_table',
                              columns=[{"name": name, "id": str(i-1), "editable": (i!= 0)} for i,name in enumerate(SettingsTableFunctions.table_columns_base_settings)],
@@ -97,6 +95,10 @@ app.layout = html.Div(
                                          'minWidth': '3%','width': '3%', 'maxWidth': '3%',
                                          'whiteSpace': 'normal',
                                          },
+                             style_data_conditional=[{'if': {'row_index':   1 },'border_top':'0px'},
+                                                     {'if': {'row_index':   3 },'border_top':'0px'},
+                                                     {'if': {'row_index':   5 },'border_top':'0px'},
+                                                     ],
                              style_cell_conditional=[{'if': {'column_id': '-1'},'width': '15%'},
                                                      {'if': {'column_id': '-1'},'textAlign': 'left'}],
                              ),
@@ -115,13 +117,16 @@ app.layout = html.Div(
                                          'whiteSpace': 'normal',
                                          'color':'gray',
                                          },
+                             style_data_conditional=[{'if': {'row_index':   1 },'border_top':'0px'},
+                                                     {'if': {'row_index':   3 },'border_top':'0px'},
+                                                     ],
                              style_cell_conditional=[{'if': {'column_id': '-1'},'width': '15%'},
                                                      {'if': {'column_id': '-1'},'textAlign': 'left'},
                                                      {'if': {'column_id': '-1'},'color': 'black'}],
                              ),
         html.Div(children=[
                 html.P('''* Units: "BG" stands for md/dL.'''),
-                html.P('''** To split a setting int two half-hour increments, type e.g. '50/60'.'''),
+                html.P('''** The two numbers in each hour column represent "on the hour" (top) and "on the half-hour" (bottom).'''),
                 html.P('''*** "True basal rate" represents what your basal insulin should be, based on your sensitivity and liver glucose settings.'''),
                 ]),
 
