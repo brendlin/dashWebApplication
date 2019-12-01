@@ -62,6 +62,11 @@ def LoadNewFile(list_of_contents, list_of_names, list_of_dates, globals) :
     print('updating global_smbg',file=sys.stdout)
 
     data = globals['global_df']
-    globals['pd_smbg'] = data[data['type'] == 'smbg'][['deviceTime', 'value']]
+
+    # deviceTime in "datetime"
+    data['deviceTime_dt'] = pd.to_datetime(data['deviceTime'])
+
+    # Subset that has the BG settings
+    globals['pd_smbg'] = data[data['type'] == 'smbg'][['deviceTime','deviceTime_dt', 'value']]
 
     return '. '.join(text_outputs)

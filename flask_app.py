@@ -21,6 +21,7 @@ import dash_table
 
 # Tools
 import ManageSettings
+import ManagePlots
 import LoadNewFile
 import SettingsTableFunctions
 
@@ -66,6 +67,9 @@ app.layout = html.Div(
                                                 ),
                            ]
                  ),
+
+        html.Button('Show this day', id='show-this-day'),
+        html.Button('Back to overview', id='overview-button'),
 
         html.Div(children = [
                 html.Hr(),  # horizontal line
@@ -121,23 +125,8 @@ app.layout = html.Div(
                 html.P('''*** "True basal rate" represents what your basal insulin should be, based on your sensitivity and liver glucose settings.'''),
                 ]),
 
-        html.Label('Slider:'),
-        dcc.Slider(min=0,max=9,value=5,
-                   marks={i: 'Label {}'.format(i) if i == 1 else str(i) for i in range(1, 9)},
-                   ), # Slider
-
         ] # html.Div Children
     ) # html.Div
-
-#
-# Text callback
-#
-# @app.callback(
-#     Output(component_id='my-div', component_property='children'),
-#     [Input(component_id='my-id', component_property='value')]
-# )
-# def update_output_div(input_value):
-#     return 'You\'ve entered "{}"'.format(input_value)
 
 #
 # Upload callback (new)
@@ -157,23 +146,35 @@ def update_file(list_of_contents, list_of_names, list_of_dates):
 # Update the plot
 #
 @app.callback(Output('display-tidepool-graph', 'figure'),
-              [Input('uploaded-input-data-flag', 'children')])
-def update_plot(update_indicator):
+              [Input('uploaded-input-data-flag', 'children'),
+               Input('show-this-day','n_clicks_timestamp'),
+               Input('overview-button','n_clicks_timestamp')],
+              [State('my-date-picker-single', 'date'),])
+def update_plot(update_flag,show_this_day,show_overview,date):
 
-    if update_indicator == None :
+    if update_flag == None :
         # Don't worry - this will be updated by default from the Upload callback
         return {}
 
-    print('children:',update_indicator,file=sys.stdout)
-    print(my_globals['pd_smbg'][:10],file=sys.stdout)
-    print('first device time:',my_globals['pd_smbg']['deviceTime'].iloc[0],file=sys.stdout)
+    start_time = my_globals['pd_smbg']['deviceTime'].iloc[-1]
+    end_time   = my_globals['pd_smbg']['deviceTime'].iloc[0]
 
-    return {'data': [
-            {'x': my_globals['pd_smbg']['deviceTime'], 'y': np.round(my_globals['pd_smbg']['value']*18.01559), 'type': 'scatter', 'name': 'SF','mode':'markers'},
-            ],
-            'layout': {'title': 'Default for None'
-                       }
-            }
+    # print('date:',date,type(date))
+
+    if (show_this_day != None) :
+        if (show_overview == None) or (show_this_day > show_overview) :
+            # print('update_plot date',date)
+            try :
+                the_time = datetime.datetime.strptime(date,'%Y-%m-%dT%H:%M:%S')
+            except ValueError :
+                the_time = datetime.datetime.strptime(date,'%Y-%m-%d')
+            start_time = the_time.strftime('%Y-%m-%dT04:00:00')
+            end_time  = (the_time+datetime.timedelta(days=1)).strftime('%Y-%m-%dT08:00:00')
+
+    start_time_dt = datetime.datetime.strptime(start_time,'%Y-%m-%dT%H:%M:%S')
+    end_time_dt   = datetime.datetime.strptime(end_time  ,'%Y-%m-%dT%H:%M:%S')
+
+    return ManagePlots.UpdatePlot(my_globals,start_time_dt,end_time_dt)
 
 #
 # Update the available dates
