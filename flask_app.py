@@ -38,6 +38,7 @@ my_globals['pd_smbg'] = 0
 my_globals['pd_settings'] = 0
 my_globals['bwz_settings'] = []
 my_globals['current_setting'] = 0
+my_globals['containers'] = dict()
 
 # for deployment, pass app.server (which is the actual flask app) to WSGI etc
 app = dash.Dash(external_stylesheets=external_stylesheets)
@@ -174,7 +175,7 @@ def update_plot(update_flag,show_this_day,show_overview,date):
             except ValueError :
                 the_time = datetime.datetime.strptime(date,'%Y-%m-%d')
             start_time = the_time.strftime('%Y-%m-%dT04:00:00')
-            end_time  = (the_time+datetime.timedelta(days=1)).strftime('%Y-%m-%dT08:00:00')
+            end_time  = (the_time+datetime.timedelta(days=1)).strftime('%Y-%m-%dT10:00:00')
 
     start_time_dt = datetime.datetime.strptime(start_time,'%Y-%m-%dT%H:%M:%S')
     end_time_dt   = datetime.datetime.strptime(end_time  ,'%Y-%m-%dT%H:%M:%S')
@@ -239,8 +240,10 @@ def update_insulin_ta_user(ta):
     if not my_globals['current_setting'] :
         return 'text'
 
-    my_globals['current_setting'].setInsulinTa(ta)
-    print('Updated Insulin Ta to:',my_globals['current_setting'].getInsulinTaHrMidnight(0))
+    if ta :
+        my_globals['current_setting'].setInsulinTa(ta)
+        print('Updated Insulin Ta to:',my_globals['current_setting'].getInsulinTaHrMidnight(0))
+
     return 'text'
 
 #
@@ -253,16 +256,22 @@ def update_food_ta_user(ta):
     if not my_globals['current_setting'] :
         return 'text'
 
-    my_globals['current_setting'].setFoodTa(ta)
-    print('Updated Food Ta to:',my_globals['current_setting'].getFoodTaHrMidnight(0))
+    if ta :
+        my_globals['current_setting'].setFoodTa(ta)
+        print('Updated Food Ta to:',my_globals['current_setting'].getFoodTaHrMidnight(0))
+
     return 'text'
 
 #
 # Update derived table
 #
 @app.callback(Output('derived_settings_table', 'data'),
-              [Input('base_settings_table', 'data')])
-def update_derived_table(table):
+              [Input('base_settings_table', 'data'),
+               Input('insulin-decay-time', 'value')])
+def update_derived_table(table,ta):
+
+    if ta :
+        my_globals['current_setting'].setInsulinTa(ta)
 
     return SettingsTableFunctions.UpdateDerivedTable(table,my_globals)
 

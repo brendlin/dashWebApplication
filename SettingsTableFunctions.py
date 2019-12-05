@@ -59,7 +59,7 @@ def UpdateBaseTable(globals) :
 #------------------------------------------------------------------
 def UpdateDerivedTable(table,globals):
 
-    print(table,file=sys.stdout)
+    #print(table,file=sys.stdout)
 
     i_isens = 0
     i_fsens = 1

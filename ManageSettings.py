@@ -71,7 +71,7 @@ def LoadFromJsonData(globals) :
         the_userprofile.AddHourlyGlucoseFromArrays(settings_basal.latestSettingsSnapshot(),
                                                    settings_duration.latestSettingsSnapshot())
         the_userprofile.AddDurationFromArray(settings_duration.latestSettingsSnapshot())
-        the_userprofile.Print()
+        #the_userprofile.Print()
         globals['bwz_settings'].append(the_userprofile)
         globals['current_setting'] = globals['bwz_settings'][-1]
 
