@@ -62,6 +62,8 @@ def UpdatePlot(globals,start_time_dt,end_time_dt) :
                            'BasalInsulin':True,
                            }
 
+        net_delta = None
+
         for c in reversed(containers) :
 
             classname = c.__class__.__name__
@@ -97,8 +99,12 @@ def UpdatePlot(globals,start_time_dt,end_time_dt) :
                           'Food'             :'Positive',
                           }.get(classname)
 
+            y_values = np.array(list(c.getBGEffectDerivPerHour(time_ut,the_userprofile) for time_ut in x_times_utc))
+
+            net_delta = y_values if (type(net_delta) == type(None)) else (net_delta + y_values)
+
             tmp_plot = {'x': x_times_datetime,
-                        'y': list(c.getBGEffectDerivPerHour(time_ut,the_userprofile) for time_ut in x_times_utc),
+                        'y': y_values,
                         'type':'scatter',
                         'fill':'tonexty',
                         'name':title,
@@ -109,10 +115,14 @@ def UpdatePlot(globals,start_time_dt,end_time_dt) :
 
             fig.append_trace(tmp_plot,2,1)
 
-            #y_food = np.array(list(c.getBGEffectDerivPerHour(time_ut,the_userprofile) for time_ut in x_times_utc))
-            #y_basalrates = np.array(list(basal.getBGEffectDerivPerHour(time_ut,the_userprofile) for time_ut in x_times_utc))
-            #y_liver = np.array(list(liver_glucose.getBGEffectDerivPerHour(time_ut,the_userprofile) for time_ut in x_times_utc))
-
+        net_line = {'x': x_times_datetime,
+                    'y': net_delta,
+                    'type':'scatter',
+                    'name':'Net '+u"\u0394"+'BG',
+                    'mode': 'lines',
+                    'line': {'color':'black', 'width':2}
+                    }
+        fig.append_trace(net_line,2,1)
 
     # Overview plot - single plot
     else :
