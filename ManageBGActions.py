@@ -64,7 +64,7 @@ def GetSettingsIndependentContainers(globals,start_time_dt64,end_time_dt64) :
 
         containers.append(c)
 
-    foods = data[(data['type'] == 'food') & ((data['deviceTime_dt'] > st_relevantEvents) & (data['deviceTime_dt'] < end_time_dt64))]
+    foods = data[(data['type'] == 'wizard') & ((data['deviceTime_dt'] > st_relevantEvents) & (data['deviceTime_dt'] < end_time_dt64))]
     for i in range(len(foods)) :
         entry = foods.iloc[i]
 
@@ -76,7 +76,27 @@ def GetSettingsIndependentContainers(globals,start_time_dt64,end_time_dt64) :
     print('tag:',tag)
     globals['containers'][tag] = containers
 
-    for c in containers :
-        print(time.ctime(c.iov_0_utc),c.__class__)
+    # for c in containers :
+    #     print(time.ctime(c.iov_0_utc),c.__class__)
 
     return globals['containers'][tag]
+
+def GetBasals(globals,start_time_dt64,end_time_dt64) :
+
+    containers = []
+    input_containers = []
+
+    st_oneDayBefore = start_time_dt64 - datetime.timedelta(hours=24)
+
+    # print(globals['basal_schedules'].settings_24h)
+    # print(globals['basal_schedules'].getValidSnapshotAtTime(start_time_dt64.strftime('%Y-%m-%dT%H:%M:%S')))
+
+    basal_atTheTime = globals['basal_schedules'].getValidSnapshotAtTime(start_time_dt64.strftime('%Y-%m-%dT%H:%M:%S'))
+    basal = BasalInsulin(st_oneDayBefore.timestamp(),end_time_dt64.timestamp(),
+                         basal_atTheTime, # np.array
+                         globals['current_setting'].InsulinSensitivity, # list of size 48
+                         input_containers)
+
+    containers.append(basal)
+
+    return containers

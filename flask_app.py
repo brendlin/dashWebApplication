@@ -38,6 +38,7 @@ my_globals['pd_smbg'] = 0
 my_globals['pd_settings'] = 0
 my_globals['bwz_settings'] = []
 my_globals['current_setting'] = 0
+my_globals['basal_schedules'] = 0
 my_globals['containers'] = dict()
 
 # for deployment, pass app.server (which is the actual flask app) to WSGI etc

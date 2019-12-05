@@ -74,6 +74,7 @@ def LoadFromJsonData(globals) :
         #the_userprofile.Print()
         globals['bwz_settings'].append(the_userprofile)
         globals['current_setting'] = globals['bwz_settings'][-1]
+        globals['basal_schedules'] = settings_basal
 
     #print('settings done.')
     return
