@@ -99,4 +99,9 @@ def GetBasals(globals,start_time_dt64,end_time_dt64) :
 
     containers.append(basal)
 
+    # liver basal
+    liver_glucose = LiverBasalGlucose()
+
+    containers.append(liver_glucose)
+
     return containers

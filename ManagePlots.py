@@ -68,10 +68,13 @@ def UpdatePlot(globals,start_time_dt,end_time_dt) :
                 title = 'Food, %d g (%d mg/dL)'%(c.food,c.getMagnitudeOfBGEffect(the_userprofile))
             if c.IsBasalInsulin() :
                 title = 'Basal Insulin'
+            if c.IsBasalGlucose() :
+                title = 'Basal Glucose'
 
-            stackgroup = {'InsulinBolus':'Negative',
-                          'BasalInsulin':'Negative',
-                          'Food':'Positive',
+            stackgroup = {'InsulinBolus'     :'Negative',
+                          'BasalInsulin'     :'Negative',
+                          'LiverBasalGlucose':'Positive',
+                          'Food'             :'Positive',
                           }.get(c.__class__.__name__)
 
             tmp_plot = {'x': x_times_datetime,
