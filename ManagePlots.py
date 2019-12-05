@@ -62,6 +62,9 @@ def UpdatePlot(globals,start_time_dt,end_time_dt) :
                            'BasalInsulin':True,
                            }
 
+        prediction_plot = ManageBGActions.GetPredictionPlot(globals,containers,start_time_dt64,end_time_dt64)
+        fig.append_trace(prediction_plot,1,1)
+
         net_delta = None
 
         for c in reversed(containers) :
