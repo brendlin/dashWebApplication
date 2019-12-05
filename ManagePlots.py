@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import plotly
 import datetime
+import time
 
 import ManageBGActions
 
@@ -46,6 +47,8 @@ def UpdatePlot(globals,start_time_dt,end_time_dt) :
         # food, measurements, insulin, square-wave, dual-wave
         containers += ManageBGActions.GetSettingsIndependentContainers(globals,start_time_dt,end_time_dt)
 
+        containers.sort(key=lambda x: x.iov_0_utc)
+
         # basals
         containers += ManageBGActions.GetBasals(globals,start_time_dt,end_time_dt)
 
@@ -53,29 +56,46 @@ def UpdatePlot(globals,start_time_dt,end_time_dt) :
         x_times_utc = range(int(start_time_dt.timestamp()),int(end_time_dt.timestamp()),int(0.1*3600))
         x_times_datetime = list(datetime.datetime.fromtimestamp(a) for a in x_times_utc)
 
+        toggleLightDark = {'InsulinBolus':True,
+                           'Food':True,
+                           'LiverBasalGlucose':True,
+                           'BasalInsulin':True,
+                           }
+
         for c in reversed(containers) :
 
-            if c.__class__.__name__ == 'BGMeasurement' :
+            classname = c.__class__.__name__
+
+            if classname == 'BGMeasurement' :
                 continue
 
             if abs(c.getIntegral(start_time_dt.timestamp(),end_time_dt.timestamp(),the_userprofile)) < 5 :
                 continue
 
-            title = c.__class__.__name__
+            timestr = time.strftime("%H:%M",time.localtime(c.iov_0_utc))
+
+            title = classname
             if c.IsBolus() :
-                title = 'Insulin, %.1f u (%d mg/dL)'%(c.insulin,c.getMagnitudeOfBGEffect(the_userprofile))
+                title = '%s Insulin, %.1f u (%d mg/dL)'%(timestr,c.insulin,c.getMagnitudeOfBGEffect(the_userprofile))
             if c.IsFood() :
-                title = 'Food, %d g (%d mg/dL)'%(c.food,c.getMagnitudeOfBGEffect(the_userprofile))
+                title = '%s Food, %d g (%d mg/dL)'%(timestr,c.food,c.getMagnitudeOfBGEffect(the_userprofile))
             if c.IsBasalInsulin() :
                 title = 'Basal Insulin'
             if c.IsBasalGlucose() :
                 title = 'Basal Glucose'
 
+            the_color = {'InsulinBolus'     :['#66E066','#99EB99'],
+                         'Food'             :['#E06666','#EB9999'],
+                         'LiverBasalGlucose':['#FFE066','#FFE066'],
+                         'BasalInsulin'     :['#ADC2FF','#ADC2FF'],
+                         }.get(classname)[toggleLightDark[classname]]
+            toggleLightDark[classname] = not toggleLightDark[classname]
+
             stackgroup = {'InsulinBolus'     :'Negative',
                           'BasalInsulin'     :'Negative',
                           'LiverBasalGlucose':'Positive',
                           'Food'             :'Positive',
-                          }.get(c.__class__.__name__)
+                          }.get(classname)
 
             tmp_plot = {'x': x_times_datetime,
                         'y': list(c.getBGEffectDerivPerHour(time_ut,the_userprofile) for time_ut in x_times_utc),
@@ -84,6 +104,7 @@ def UpdatePlot(globals,start_time_dt,end_time_dt) :
                         'name':title,
                         'stackgroup':stackgroup,
                         'mode': 'none',
+                        'fillcolor':the_color,
                         }
 
             fig.append_trace(tmp_plot,2,1)
