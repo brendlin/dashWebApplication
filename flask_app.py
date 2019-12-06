@@ -86,46 +86,9 @@ app.layout = html.Div(
         html.Label('Food decay time (hr): ',style={'width': '15%','display': 'inline-block'}),
         dcc.Input(id='food-decay-time', value='2', type='text',style={'width': '5%','display': 'inline-block'}),
 
-        dash_table.DataTable(id='base_settings_table',
-                             columns=[{"name": name, "id": str(i-1), "editable": (i!= 0)} for i,name in enumerate(SettingsTableFunctions.table_columns_base_settings)],
-                             data=[],
-                             style_header={'backgroundColor': 'rgb(230, 230, 230)',
-                                           'fontWeight': 'bold'
-                                           },
-                             style_cell={'height': 'auto',
-                                         # all three widths are needed
-                                         'minWidth': '3%','width': '3%', 'maxWidth': '3%',
-                                         'whiteSpace': 'normal',
-                                         },
-                             style_data_conditional=[{'if': {'row_index':   1 },'border_top':'0px'},
-                                                     {'if': {'row_index':   3 },'border_top':'0px'},
-                                                     {'if': {'row_index':   5 },'border_top':'0px'},
-                                                     ],
-                             style_cell_conditional=[{'if': {'column_id': '-1'},'width': '15%'},
-                                                     {'if': {'column_id': '-1'},'textAlign': 'left'}],
-                             ),
+        SettingsTableFunctions.base_settings_table,
+        SettingsTableFunctions.derived_settings_table,
 
-        dash_table.DataTable(id='derived_settings_table',
-                             editable=False,
-                             columns=[{"name": name, "id": str(i-1)} for i,name in enumerate(SettingsTableFunctions.table_columns_derived_settings)],
-                             data=[],
-                             style_header={'backgroundColor': 'rgb(230, 230, 230)',
-                                           'fontWeight': 'bold',
-                                           'color':'black',
-                                           },
-                             style_cell={'height': 'auto',
-                                         # all three widths are needed
-                                         'minWidth': '3%','width': '3%', 'maxWidth': '3%',
-                                         'whiteSpace': 'normal',
-                                         'color':'gray',
-                                         },
-                             style_data_conditional=[{'if': {'row_index':   1 },'border_top':'0px'},
-                                                     {'if': {'row_index':   3 },'border_top':'0px'},
-                                                     ],
-                             style_cell_conditional=[{'if': {'column_id': '-1'},'width': '15%'},
-                                                     {'if': {'column_id': '-1'},'textAlign': 'left'},
-                                                     {'if': {'column_id': '-1'},'color': 'black'}],
-                             ),
         html.Div(children=[
                 html.P('''* Units: "BG" stands for md/dL.'''),
                 html.P('''** The two numbers in each hour column represent "on the hour" (top) and "on the half-hour" (bottom).'''),
@@ -159,7 +122,7 @@ def update_file(list_of_contents, list_of_names, list_of_dates):
               [State('my-date-picker-single', 'date'),])
 def update_plot(update_flag,show_this_day,show_overview,date):
 
-    if update_flag == None :
+    if (update_flag == None) or (type(my_globals['pd_smbg']) == type(int)) :
         # Don't worry - this will be updated by default from the Upload callback
         return {}
 
@@ -190,11 +153,17 @@ def update_plot(update_flag,show_this_day,show_overview,date):
               [Input('uploaded-input-data-flag', 'children')])
 def update_dates_min(update_indicator):
 
+    if not update_indicator :
+        return datetime.datetime(1995, 8, 5)
+
     return min(np.array(my_globals['pd_smbg']['deviceTime'],dtype='datetime64'))
 
 @app.callback(Output('my-date-picker-single', 'max_date_allowed'),
               [Input('uploaded-input-data-flag', 'children')])
 def update_dates_max(update_indicator):
+
+    if not update_indicator :
+        return datetime.datetime(2017, 9, 19)
 
     return max(np.array(my_globals['pd_smbg']['deviceTime'],dtype='datetime64'))
 
@@ -202,11 +171,17 @@ def update_dates_max(update_indicator):
               [Input('uploaded-input-data-flag', 'children')])
 def update_dates_month(update_indicator):
 
+    if not update_indicator :
+        return datetime.datetime(2017, 8, 5)
+
     return max(np.array(my_globals['pd_smbg']['deviceTime'],dtype='datetime64'))
 
 @app.callback(Output('my-date-picker-single', 'date'),
               [Input('uploaded-input-data-flag', 'children')])
 def update_dates_day(update_indicator):
+
+    if not update_indicator :
+        return str(datetime.datetime(2017, 8, 25, 23, 59, 59))
 
     return max(np.array(my_globals['pd_smbg']['deviceTime'],dtype='datetime64'))
 

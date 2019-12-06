@@ -1,5 +1,6 @@
 import sys
 import copy
+from dash_table import DataTable
 
 #
 # Set up the table columns, and the "vanilla" settings
@@ -22,6 +23,48 @@ for row in defaults_base :
     for i in range(24) :
         table_default_base_settings[-1][i] = row[1]
 
+tmp1 = DataTable(id='base_settings_table',
+                 columns=[{"name": name, "id": str(i-1), "editable": (i!= 0)} for i,name in enumerate(table_columns_base_settings)],
+                 data=[],
+                 style_header={'backgroundColor': 'rgb(230, 230, 230)',
+                               'fontWeight': 'bold'
+                               },
+                 style_cell={'height': 'auto',
+                             # all three widths are needed
+                             'minWidth': '3%','width': '3%', 'maxWidth': '3%',
+                             'whiteSpace': 'normal',
+                             },
+                 style_data_conditional=[{'if': {'row_index':   1 },'border_top':'0px'},
+                                         {'if': {'row_index':   3 },'border_top':'0px'},
+                                         {'if': {'row_index':   5 },'border_top':'0px'},
+                                         ],
+                 style_cell_conditional=[{'if': {'column_id': '-1'},'width': '15%'},
+                                         {'if': {'column_id': '-1'},'textAlign': 'left'}],
+                 )
+base_settings_table = tmp1
+
+tmp2 = DataTable(id='derived_settings_table',
+                 editable=False,
+                 columns=[{"name": name, "id": str(i-1)} for i,name in enumerate(table_columns_derived_settings)],
+                 data=[],
+                 style_header={'backgroundColor': 'rgb(230, 230, 230)',
+                                          'fontWeight': 'bold',
+                               'color':'black',
+                               },
+                 style_cell={'height': 'auto',
+                             # all three widths are needed
+                             'minWidth': '3%','width': '3%', 'maxWidth': '3%',
+                             'whiteSpace': 'normal',
+                             'color':'gray',
+                             },
+                 style_data_conditional=[{'if': {'row_index':   1 },'border_top':'0px'},
+                                         {'if': {'row_index':   3 },'border_top':'0px'},
+                                         ],
+                 style_cell_conditional=[{'if': {'column_id': '-1'},'width': '15%'},
+                                         {'if': {'column_id': '-1'},'textAlign': 'left'},
+                                         {'if': {'column_id': '-1'},'color': 'black'}],
+                 )
+derived_settings_table = tmp2
 
 #------------------------------------------------------------------
 def UpdateBaseTable(globals) :
