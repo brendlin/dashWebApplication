@@ -22,6 +22,7 @@ import ManageSettings
 import ManagePlots
 import LoadNewFile
 import SettingsTableFunctions
+import SettingsSliders
 
 # BG Classes
 from BGModel import BGActionClasses
@@ -81,10 +82,16 @@ app.layout = html.Div(
                 ]
                  ),
 
+        *SettingsSliders.slider_divs,
+
+        html.Hr(),  # horizontal line
+
         html.Label('Insulin decay time (hr): ',style={'width': '15%','display': 'inline-block'}),
         dcc.Input(id='insulin-decay-time', value='4', type='text',style={'width': '5%','display': 'inline-block','align': 'left','marginRight':'5%'}),
         html.Label('Food decay time (hr): ',style={'width': '15%','display': 'inline-block'}),
         dcc.Input(id='food-decay-time', value='2', type='text',style={'width': '5%','display': 'inline-block'}),
+
+        html.Hr(),  # horizontal line
 
         SettingsTableFunctions.base_settings_table,
         SettingsTableFunctions.derived_settings_table,
@@ -246,11 +253,65 @@ def update_food_ta_user(ta):
                Input('insulin-decay-time', 'value')])
 def update_derived_table(table,ta):
 
+    if not my_globals['current_setting'] :
+        return SettingsTableFunctions.derived_settings_table
+
     if ta :
         my_globals['current_setting'].setInsulinTa(ta)
 
     return SettingsTableFunctions.UpdateDerivedTable(table,my_globals)
 
+#
+# Update slider echos
+#
+# @app.callback(Output('slider-echos-master-%s'%('sensitivity'), 'children'),
+#               list(Input('slider-%s-%d'%('sensitivity',i),'value') for i in range(24)))
+# def update_echo_master(*args) :
+#     return SettingsSliders.UpdateListOfEchos('sensitivity',*args)
+
+# @app.callback(Output('slider-echos-master-%s'%('food'), 'children'),
+#               list(Input('slider-%s-%d'%('food',i),'value') for i in range(24)))
+# def update_echo_master(*args) :
+#     return SettingsSliders.UpdateListOfEchos('food',*args)
+
+# @app.callback(Output('slider-echos-master-%s'%('liver'), 'children'),
+#               list(Input('slider-%s-%d'%('liver',i),'value') for i in range(24)))
+# def update_echo_master(*args) :
+#     return SettingsSliders.UpdateListOfEchos('liver',*args)
+
+#
+# Update sliders
+#
+# @app.callback(Output('slider-sensitivity-0', 'value'),
+#               [Input('uploaded-input-data-flag', 'children')])
+# def update_a_slider_sensitivity_0(value):
+#     return SettingsSliders.UpdateSlider('sensitivity',0,my_globals)
+
+#
+# Update sliders - dynamically generated functions (a little slow...)
+#
+# def make_update_slider(setting,i) :
+
+#     def callback(value) :
+#         return SettingsSliders.UpdateSlider(setting,i,my_globals)
+
+#     return callback
+
+# for setting in ['sensitivity','food','liver'] :
+#     for i in range(24) :
+#         dynamically_generated_slider_update = make_update_slider(setting,i)
+#         app.callback(Output('slider-%s-%d'%(setting,i), 'value'),
+#                      [Input('uploaded-input-data-flag', 'children')])(dynamically_generated_slider_update)
+
+@app.callback(list(Output('slider-%s-%d'%(setting,i),'value') for setting in ['sensitivity','food','liver'] for i in range(24)),
+              [Input('uploaded-input-data-flag', 'children')])
+def update_sliders_from_newdata(update_indicator) :
+    outputs = []
+    for setting in ['sensitivity','food','liver'] :
+        for i in range(24) :
+            outputs.append(SettingsSliders.UpdateSlider(setting,i,my_globals))
+    print(outputs)
+    return outputs
 
 app.title = 'Kurt Webpage'
 
