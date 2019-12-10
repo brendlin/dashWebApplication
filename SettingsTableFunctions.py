@@ -1,6 +1,7 @@
 import sys
 import copy
 from dash_table import DataTable
+from BGModel import Settings
 
 #
 # Set up the table columns, and the "vanilla" settings
@@ -67,10 +68,12 @@ tmp2 = DataTable(id='derived_settings_table',
 derived_settings_table = tmp2
 
 #------------------------------------------------------------------
-def UpdateBaseTable(globals) :
+def UpdateBaseTable(the_userprofile_json) :
 
-    if not globals['current_setting'] :
+    if not the_userprofile_json :
         return table_default_base_settings
+
+    the_userprofile = Settings.TrueUserProfile.fromJson(the_userprofile_json)
 
     out_table = []
     for row in defaults_base :
@@ -83,8 +86,8 @@ def UpdateBaseTable(globals) :
     for column in range(3) :
 
         for i in range(24) :
-            on_the_hour = getattr(globals['current_setting'],'get%sHrMidnight'%(fcns[column]))(i)
-            half_hour   = getattr(globals['current_setting'],'get%sHrMidnight'%(fcns[column]))(i+0.5)
+            on_the_hour = getattr(the_userprofile,'get%sHrMidnight'%(fcns[column]))(i)
+            half_hour   = getattr(the_userprofile,'get%sHrMidnight'%(fcns[column]))(i+0.5)
 
             round_on_the_hour = sign[column]*round(on_the_hour,round_digits[column])
             round_half_hour   = sign[column]*round(half_hour  ,round_digits[column])
@@ -100,7 +103,7 @@ def UpdateBaseTable(globals) :
     return out_table
 
 #------------------------------------------------------------------
-def UpdateDerivedTable(table,globals):
+def UpdateDerivedTable(table,insulin_decay_time):
 
     #print(table,file=sys.stdout)
 
@@ -110,7 +113,7 @@ def UpdateDerivedTable(table,globals):
 
     # get the duration (needed for basal)
     # divide by 2 (peak is ta/2), multiply by 2 (1/2hr increments)
-    offset = int(float(globals['current_setting'].getInsulinTaHrMidnight(0)))
+    offset = int(float(insulin_decay_time))
 
     ret = []
 
@@ -177,3 +180,29 @@ def UpdateDerivedTable(table,globals):
     ret.append(basal_hhr)
 
     return ret
+
+#------------------------------------------------------------------
+def ConvertBaseTableToProfile(table,ta,tf) :
+
+    sensitivities = [0]*48
+    foodsens = [0]*48
+    liver = [0]*48
+
+    the_userprofile = Settings.TrueUserProfile()
+
+    for i in range(24) :
+        # on the hour
+        the_userprofile.InsulinSensitivity[i*2] = -int(table[0][str(i)])
+        the_userprofile.FoodSensitivity[i*2]    = float(table[2][str(i)])
+        the_userprofile.LiverHourlyGlucose[i*2] = int(table[4][str(i)])
+        the_userprofile.InsulinTa[i*2]          = ta
+        the_userprofile.FoodTa[i*2]             = tf
+
+        # on the half-hour
+        the_userprofile.InsulinSensitivity[i*2+1] = -int(table[1][str(i)])
+        the_userprofile.FoodSensitivity[i*2+1]    = float(table[3][str(i)])
+        the_userprofile.LiverHourlyGlucose[i*2+1] = int(table[5][str(i)])
+        the_userprofile.InsulinTa[i*2+1]          = ta
+        the_userprofile.FoodTa[i*2+1]             = tf
+
+    return the_userprofile.toJson()
