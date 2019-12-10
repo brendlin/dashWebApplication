@@ -10,15 +10,17 @@
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
+from dash.exceptions import PreventUpdate
 import sys
 
 import datetime
 
 import numpy as np
+import pandas as pd
 import dash_table
+import plotly
 
 # Tools
-import ManageSettings
 import ManagePlots
 import LoadNewFile
 import SettingsTableFunctions
@@ -26,21 +28,12 @@ import SettingsSliders
 
 # BG Classes
 from BGModel import BGActionClasses
+from BGModel import Settings
 
 # needed for callbacks
 from dash.dependencies import Input, Output, State
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-
-# Make some globals that we can overwrite, refer to, etc.
-my_globals = dict()
-my_globals['global_df'] = 0
-my_globals['pd_smbg'] = 0
-my_globals['pd_settings'] = 0
-my_globals['bwz_settings'] = []
-my_globals['current_setting'] = 0
-my_globals['basal_schedules'] = 0
-my_globals['containers'] = dict()
 
 # for deployment, pass app.server (which is the actual flask app) to WSGI etc
 app = dash.Dash(external_stylesheets=external_stylesheets)
@@ -48,16 +41,33 @@ app = dash.Dash(external_stylesheets=external_stylesheets)
 app.layout = html.Div(
     children=[
 
-        html.H1(children='Modeling blood glucose and the effects of insulin'),
+        html.H5(children='Modeling blood glucose and the effects of insulin'),
 
         html.Div(children='''The following works with Tidepool and Medtronic 551.'''),
 
-        dcc.Upload(id='upload-data',
-                   children=[html.Button('Upload your own data from Tidepool')],
-                   multiple=False,
-                   ),
+        html.Div([html.Div(dcc.Upload(id='upload-data',
+                                      children=[html.Button('Upload your own data from Tidepool',style={'width':'400px','display':'table-cell'})],
+                                      multiple=False,
+                                      style={'width':'400px','display':'table-cell'}
+                                      ),
+                           style={'display':'table-cell','width':'450px'}),
+                  html.Div(id='uploaded-input-data-status',children=None,style={'display':'table-cell','width':'50%'})
+                  ],
+                 style={'align':'left','width':'100%','display':'table'}
+                 ),
 
-        html.Div(id='uploaded-input-data-flag',children=None),
+        # Saved profiles (panda)
+        html.Div(id='active-profile'    ,style={'display': 'none'},children=None), # This will store the json text
+        html.Div(id='profiles-from-data',style={'display': 'none'},children=None), # This will store the json text
+        html.Div(id='custom-profiles'   ,style={'display': 'none'},children=None), # This will store the json text
+
+        # Saved basal schedules (panda)
+        html.Div(id='all-basal-schedules',style={'display':'none'},children='blahblah'), # This stores the historical basal schedules
+
+        # Sub-panda datasets from raw file
+        html.Div(id='upload-smbg-panda'     ,style={'display': 'none'},children=None), # This stores the historical basal schedules
+        html.Div(id='upload-container-panda',style={'display': 'none'},children=None), # This stores the historical basal schedules
+        html.Div(id='upload-settings-panda' ,style={'display': 'none'},children=None), # This stores the historical basal schedules
 
         html.Div(children=['''Pick a date:''',
                            dcc.DatePickerSingle(id='my-date-picker-single',
@@ -82,25 +92,34 @@ app.layout = html.Div(
                 ]
                  ),
 
-        *SettingsSliders.slider_divs,
+        html.Div(html.Div([dcc.Dropdown(id='profiles-dropdown',placeholder='Your profiles',style={'width':'250px','display': 'inline-block','verticalAlign':'middle'}),
+                           html.Div(style={'width':'20px','display':'inline-block'}),
+                           html.Label('Insulin decay time (hr): ',style={'width': '20%','display': 'inline-block','verticalAlign':'middle'}),
+                           dcc.Input(id='insulin-decay-time', value='4', type='text',style={'width': '5%','display': 'inline-block','align': 'left','marginRight':'5%','verticalAlign':'middle'}),
+                           html.Label('Food decay time (hr): ',style={'width': '20%','display': 'inline-block','verticalAlign':'middle'}),
+                           dcc.Input(id='food-decay-time', value='2', type='text',style={'width': '5%','display': 'inline-block','verticalAlign':'middle'}),
+                           ],
+                          style={'display':'table-cell','verticalAlign':'middle'},
+                          ),
+                 style={'height':'50px','display':'table','width':'100%'},
+                 ),
 
         html.Hr(),  # horizontal line
 
-        html.Label('Insulin decay time (hr): ',style={'width': '15%','display': 'inline-block'}),
-        dcc.Input(id='insulin-decay-time', value='4', type='text',style={'width': '5%','display': 'inline-block','align': 'left','marginRight':'5%'}),
-        html.Label('Food decay time (hr): ',style={'width': '15%','display': 'inline-block'}),
-        dcc.Input(id='food-decay-time', value='2', type='text',style={'width': '5%','display': 'inline-block'}),
+        *SettingsSliders.slider_divs,
 
         html.Hr(),  # horizontal line
 
         SettingsTableFunctions.base_settings_table,
         SettingsTableFunctions.derived_settings_table,
 
-        html.Div(children=[
-                html.P('''* Units: "BG" stands for md/dL.'''),
-                html.P('''** The two numbers in each hour column represent "on the hour" (top) and "on the half-hour" (bottom).'''),
-                html.P('''*** "True basal rate" represents what your basal insulin should be, based on your sensitivity and liver glucose settings.'''),
-                ]),
+        dcc.Markdown(children='''\* Units: "BG" stands for mg/dL.
+
+\*\* The two numbers in each hour column represent "on the hour" (top) and "on the half-hour" (bottom).
+
+\*\*\* "True basal rate" represents what your basal insulin should be, based on your sensitivity and liver glucose settings.
+'''
+                      ),
 
         ] # html.Div Children
     ) # html.Div
@@ -108,142 +127,159 @@ app.layout = html.Div(
 #
 # Upload callback (new)
 #
-@app.callback(Output('uploaded-input-data-flag', 'children'),
+@app.callback([Output('uploaded-input-data-status','children'),
+               Output('all-basal-schedules', 'children'),
+               Output('profiles-from-data', 'children'),
+               Output('my-date-picker-single', 'min_date_allowed'),
+               Output('my-date-picker-single', 'max_date_allowed'),
+               Output('my-date-picker-single', 'initial_visible_month'),
+               Output('my-date-picker-single', 'date'),
+               Output('upload-container-panda', 'children'),
+               Output('upload-smbg-panda','children'),
+               ],
               [Input('upload-data', 'contents')],
-              [State('upload-data', 'filename'),
-               State('upload-data', 'last_modified')])
-def update_file(list_of_contents, list_of_names, list_of_dates):
+              [State('upload-data', 'filename')])
+def update_file(contents, name):
 
-    output = LoadNewFile.LoadNewFile(list_of_contents, list_of_names, list_of_dates, my_globals)
-    ManageSettings.LoadFromJsonData(my_globals)
-
-    return output
+    return LoadNewFile.LoadNewFile(contents, name)
 
 #
 # Update the plot
 #
 @app.callback(Output('display-tidepool-graph', 'figure'),
-              [Input('uploaded-input-data-flag', 'children'),
+              [Input('upload-smbg-panda', 'children'),
+               Input('active-profile', 'children'),
                Input('show-this-day','n_clicks_timestamp'),
                Input('overview-button','n_clicks_timestamp')],
-              [State('my-date-picker-single', 'date'),])
-def update_plot(update_flag,show_this_day,show_overview,date):
+              [State('my-date-picker-single', 'date'),
+               State('all-basal-schedules','children'),
+               State('upload-container-panda','children'),])
+def update_plot(pd_smbg_json,active_profile_json,show_this_day_t,show_overview_t,date,basals_json,pd_cont_json):
 
-    if (update_flag == None) or (type(my_globals['pd_smbg']) == type(int)) :
+    #print('basals_json',basals_json)
+    #print('active_profile_json',active_profile_json)
+    #print('pd_cont_json',('Exists.' if pd_cont_json else 'Empty.'))
+
+    if (not pd_smbg_json) :
         # Don't worry - this will be updated by default from the Upload callback
         return {}
 
-    start_time = my_globals['pd_smbg']['deviceTime'].iloc[-1]
-    end_time   = my_globals['pd_smbg']['deviceTime'].iloc[0]
+    pd_smbg = pd.read_json(pd_smbg_json)
 
-    # print('date:',date,type(date))
+    thisDayWasPressed = (show_this_day_t != None)
+    overviewNeverPressed = (show_overview_t == None)
+    doDayPlot = thisDayWasPressed and (overviewNeverPressed or (show_this_day_t > show_overview_t))
 
-    if (show_this_day != None) :
-        if (show_overview == None) or (show_this_day > show_overview) :
-            # print('update_plot date',date)
-            try :
-                the_time = datetime.datetime.strptime(date,'%Y-%m-%dT%H:%M:%S')
-            except ValueError :
-                the_time = datetime.datetime.strptime(date,'%Y-%m-%d')
-            start_time = the_time.strftime('%Y-%m-%dT04:00:00')
-            end_time  = (the_time+datetime.timedelta(days=1)).strftime('%Y-%m-%dT10:00:00')
+    # some more sanity guards:
+    if (not pd_cont_json) :
+        doDayPlot = False
+
+    doOverview = not doDayPlot
+
+    if doOverview :
+        fig = plotly.subplots.make_subplots(rows=1,cols=1,shared_xaxes=True)
+    if doDayPlot :
+        fig = plotly.subplots.make_subplots(rows=2, cols=1,shared_xaxes=True,vertical_spacing=0.02)
+
+    # Get the right timing
+    if doDayPlot :
+        try :
+            the_time = datetime.datetime.strptime(date,'%Y-%m-%dT%H:%M:%S')
+        except ValueError :
+            the_time = datetime.datetime.strptime(date,'%Y-%m-%d')
+        start_time = the_time.strftime('%Y-%m-%dT04:00:00')
+        end_time  = (the_time+datetime.timedelta(days=1)).strftime('%Y-%m-%dT10:00:00')
+
+    else :
+        start_time = pd_smbg['deviceTime'].iloc[-1]
+        end_time   = pd_smbg['deviceTime'].iloc[0]
 
     start_time_dt = datetime.datetime.strptime(start_time,'%Y-%m-%dT%H:%M:%S')
     end_time_dt   = datetime.datetime.strptime(end_time  ,'%Y-%m-%dT%H:%M:%S')
 
-    return ManagePlots.UpdatePlot(my_globals,start_time_dt,end_time_dt)
+    fig.update_yaxes(title_text="BG (mg/dL)", row=1, col=1)
+    fig.update_yaxes(title_text=u"\u0394"+" BG (mg/dL/hr)", row=2, col=1)
+    fig.update_xaxes(range=[start_time_dt, end_time_dt])
+    fig.update_layout(margin=dict(l=20, r=20, t=20, b=20),paper_bgcolor="LightSteelBlue",)
+
+    smbg_plot = ManagePlots.GetPlotSMBG(pd_smbg,start_time_dt,end_time_dt)
+    fig.append_trace(smbg_plot,1,1)
+
+    if not doDayPlot :
+        return fig
+
+    #fig.update_layout(transition={'duration': 500})
+
+    # After this point, we assume we are doing the full analysis.
+    pd_cont = pd.read_json(pd_cont_json)
+    basals = Settings.UserSetting.fromJson(basals_json)
+    active_profile = Settings.TrueUserProfile.fromJson(active_profile_json)
+
+    plots = ManagePlots.GetAnalysisPlots(pd_smbg,pd_cont,basals,active_profile,start_time_dt,end_time_dt)
+    for plot in plots[0] :
+        fig.append_trace(plot,1,1)
+    for plot in plots[1] :
+        fig.append_trace(plot,2,1)
+
+    return fig
 
 #
-# Update the available dates
+# Update the list of available menus
 #
-@app.callback(Output('my-date-picker-single', 'min_date_allowed'),
-              [Input('uploaded-input-data-flag', 'children')])
-def update_dates_min(update_indicator):
+@app.callback([Output('profiles-dropdown', 'options'),
+               Output('profiles-dropdown', 'value')],
+              [Input('profiles-from-data', 'children'),
+               Input('custom-profiles', 'children')],
+              [State('profiles-dropdown','value')])
+def update_dropdown(profiles_from_data_json,custom_profiles_json,previous_value) :
 
-    if not update_indicator :
-        return datetime.datetime(1995, 8, 5)
+    options = []
+    new_value = previous_value
 
-    return min(np.array(my_globals['pd_smbg']['deviceTime'],dtype='datetime64'))
+    if profiles_from_data_json :
+        profiles = dict()
+        for each_profile in profiles_from_data_json.split('###') :
+            key,value = each_profile.split('$$$')
+            key_short = 'profile from %s'%(datetime.datetime.strptime(key,'%Y-%m-%dT%H:%M:%S').strftime('%Y-%m-%d'))
+            options.append({'label':key_short,'value':value})
 
-@app.callback(Output('my-date-picker-single', 'max_date_allowed'),
-              [Input('uploaded-input-data-flag', 'children')])
-def update_dates_max(update_indicator):
+        if not new_value :
+            new_value = options[-1]['value']
 
-    if not update_indicator :
-        return datetime.datetime(2017, 9, 19)
-
-    return max(np.array(my_globals['pd_smbg']['deviceTime'],dtype='datetime64'))
-
-@app.callback(Output('my-date-picker-single', 'initial_visible_month'),
-              [Input('uploaded-input-data-flag', 'children')])
-def update_dates_month(update_indicator):
-
-    if not update_indicator :
-        return datetime.datetime(2017, 8, 5)
-
-    return max(np.array(my_globals['pd_smbg']['deviceTime'],dtype='datetime64'))
-
-@app.callback(Output('my-date-picker-single', 'date'),
-              [Input('uploaded-input-data-flag', 'children')])
-def update_dates_day(update_indicator):
-
-    if not update_indicator :
-        return str(datetime.datetime(2017, 8, 25, 23, 59, 59))
-
-    return max(np.array(my_globals['pd_smbg']['deviceTime'],dtype='datetime64'))
+    return options, new_value
 
 #
 # Update the base table
 #
 @app.callback(Output('base_settings_table', 'data'),
-              [Input('uploaded-input-data-flag', 'children')])
-def update_base_settings(table):
+              [Input('profiles-dropdown', 'value')])
+def update_base_settings(new_profile_selected_from_dropdown):
 
-    return SettingsTableFunctions.UpdateBaseTable(my_globals)
+    return SettingsTableFunctions.UpdateBaseTable(new_profile_selected_from_dropdown)
 
 #
 # Update InsulinTa
 #
 @app.callback(Output('insulin-decay-time', 'value'),
-              [Input('uploaded-input-data-flag', 'children')])
-def update_insulin_ta_inpudata(not_used):
+              [Input('profiles-dropdown', 'value')])
+def update_insulin_ta_inpudata(new_profile_selected_from_dropdown):
 
-    if not my_globals['current_setting'] :
+    if not new_profile_selected_from_dropdown :
         return 4
 
-    return my_globals['current_setting'].getInsulinTaHrMidnight(0)
+    return Settings.TrueUserProfile.fromJson(new_profile_selected_from_dropdown).getInsulinTaHrMidnight(0)
 
 #
-# User updates InsulinTa
+# Update FoodTa
 #
-@app.callback(Output('insulin-decay-time', 'type'),
-              [Input('insulin-decay-time', 'value')])
-def update_insulin_ta_user(ta):
+@app.callback(Output('food-decay-time', 'value'),
+              [Input('profiles-dropdown', 'value')])
+def update_insulin_ta_inpudata(new_profile_selected_from_dropdown):
 
-    if not my_globals['current_setting'] :
-        return 'text'
+    if not new_profile_selected_from_dropdown :
+        return 2
 
-    if ta :
-        my_globals['current_setting'].setInsulinTa(ta)
-        print('Updated Insulin Ta to:',my_globals['current_setting'].getInsulinTaHrMidnight(0))
-
-    return 'text'
-
-#
-# User updates FoodTa
-#
-@app.callback(Output('food-decay-time', 'type'),
-              [Input('food-decay-time', 'value')])
-def update_food_ta_user(ta):
-
-    if not my_globals['current_setting'] :
-        return 'text'
-
-    if ta :
-        my_globals['current_setting'].setFoodTa(ta)
-        print('Updated Food Ta to:',my_globals['current_setting'].getFoodTaHrMidnight(0))
-
-    return 'text'
+    return Settings.TrueUserProfile.fromJson(new_profile_selected_from_dropdown).getFoodTaHrMidnight(0)
 
 #
 # Update derived table
@@ -253,13 +289,25 @@ def update_food_ta_user(ta):
                Input('insulin-decay-time', 'value')])
 def update_derived_table(table,ta):
 
-    if not my_globals['current_setting'] :
-        return SettingsTableFunctions.derived_settings_table
+    if not ta :
+        raise PreventUpdate
 
-    if ta :
-        my_globals['current_setting'].setInsulinTa(ta)
+    return SettingsTableFunctions.UpdateDerivedTable(table,ta)
 
-    return SettingsTableFunctions.UpdateDerivedTable(table,my_globals)
+
+#
+# Update the active settings from the table
+#
+@app.callback(Output('active-profile', 'children'),
+              [Input('base_settings_table', 'data'),
+               Input('insulin-decay-time', 'value'),
+               Input('food-decay-time', 'value')])
+def update_active_profile(table,ta,tf):
+
+    if (not ta) or (not tf) :
+        raise PreventUpdate
+
+    return SettingsTableFunctions.ConvertBaseTableToProfile(table,ta,tf)
 
 #
 # Update slider echos
