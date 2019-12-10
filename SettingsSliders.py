@@ -1,5 +1,6 @@
 import dash_core_components as dcc
 import dash_html_components as html
+from BGModel import Settings
 
 hsliders = "40px"
 hecho = "20px"
@@ -72,10 +73,9 @@ def UpdateListOfEchos(setting,*args) :
     return bufferLeftEcho + echos
 
 #------------------------------------------------------------------
-def UpdateSlider(setting,i,globals) :
+def UpdateSlider(setting,i,the_userprofile_json) :
 
-    if not globals['current_setting'] :
-        return 
+    the_userprofile = Settings.TrueUserProfile.fromJson(the_userprofile_json)
 
     fcn = {'sensitivity':'getInsulinSensitivityHrMidnight',
            'food':'getFoodSensitivityHrMidnight',
@@ -92,7 +92,7 @@ def UpdateSlider(setting,i,globals) :
                    'liver':0,
                    }.get(setting)
 
-    result = sign*getattr(globals['current_setting'],fcn)((i+6)%24)
+    result = sign*getattr(the_userprofile,fcn)((i+6)%24)
     result = round(result,round_digits)
     if not round_digits :
         result = int(result)

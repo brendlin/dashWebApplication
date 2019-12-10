@@ -310,54 +310,19 @@ def update_active_profile(table,ta,tf):
     return SettingsTableFunctions.ConvertBaseTableToProfile(table,ta,tf)
 
 #
-# Update slider echos
+# Update the sliders from the new profile
 #
-# @app.callback(Output('slider-echos-master-%s'%('sensitivity'), 'children'),
-#               list(Input('slider-%s-%d'%('sensitivity',i),'value') for i in range(24)))
-# def update_echo_master(*args) :
-#     return SettingsSliders.UpdateListOfEchos('sensitivity',*args)
-
-# @app.callback(Output('slider-echos-master-%s'%('food'), 'children'),
-#               list(Input('slider-%s-%d'%('food',i),'value') for i in range(24)))
-# def update_echo_master(*args) :
-#     return SettingsSliders.UpdateListOfEchos('food',*args)
-
-# @app.callback(Output('slider-echos-master-%s'%('liver'), 'children'),
-#               list(Input('slider-%s-%d'%('liver',i),'value') for i in range(24)))
-# def update_echo_master(*args) :
-#     return SettingsSliders.UpdateListOfEchos('liver',*args)
-
-#
-# Update sliders
-#
-# @app.callback(Output('slider-sensitivity-0', 'value'),
-#               [Input('uploaded-input-data-flag', 'children')])
-# def update_a_slider_sensitivity_0(value):
-#     return SettingsSliders.UpdateSlider('sensitivity',0,my_globals)
-
-#
-# Update sliders - dynamically generated functions (a little slow...)
-#
-# def make_update_slider(setting,i) :
-
-#     def callback(value) :
-#         return SettingsSliders.UpdateSlider(setting,i,my_globals)
-
-#     return callback
-
-# for setting in ['sensitivity','food','liver'] :
-#     for i in range(24) :
-#         dynamically_generated_slider_update = make_update_slider(setting,i)
-#         app.callback(Output('slider-%s-%d'%(setting,i), 'value'),
-#                      [Input('uploaded-input-data-flag', 'children')])(dynamically_generated_slider_update)
-
 @app.callback(list(Output('slider-%s-%d'%(setting,i),'value') for setting in ['sensitivity','food','liver'] for i in range(24)),
-              [Input('uploaded-input-data-flag', 'children')])
-def update_sliders_from_newdata(update_indicator) :
+              [Input('profiles-dropdown', 'value')])
+def update_sliders_from_newdata(new_profile_selected_from_dropdown) :
+
+    if not new_profile_selected_from_dropdown :
+        raise PreventUpdate
+
     outputs = []
     for setting in ['sensitivity','food','liver'] :
         for i in range(24) :
-            outputs.append(SettingsSliders.UpdateSlider(setting,i,my_globals))
+            outputs.append(SettingsSliders.UpdateSlider(setting,i,new_profile_selected_from_dropdown))
     print(outputs)
     return outputs
 
