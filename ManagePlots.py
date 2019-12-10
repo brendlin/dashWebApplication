@@ -7,66 +7,54 @@ import time
 
 import ManageBGActions
 
-def UpdatePlot(globals,start_time_dt,end_time_dt) :
+def GetPlotSMBG(pd_smbg,start_time_dt,end_time_dt) :
+
+#     start_time_s = start_time_dt.timestamp()
+#     end_time_s   = end_time_dt.timestamp()
+#     print('start_time',start_time_dt)
+#     print('end_time',end_time_dt)
+#     print('start_time',start_time_s)
+#     print('end_time',end_time_s)
+#     print(pd_smbg[:10],file=sys.stdout)
+#     print('first device time:',pd_smbg['deviceTime'].iloc[0],file=sys.stdout)
+#     print('first device time:',pd.to_datetime(pd_smbg['deviceTime'].iloc[0]),file=sys.stdout)
+
+    smbg_inrange = pd_smbg[(pd.to_datetime(pd_smbg['deviceTime']) > start_time_dt) & (pd.to_datetime(pd_smbg['deviceTime']) < end_time_dt)]
+
+    smbg_plot = {'x': smbg_inrange['deviceTime'],
+                 'y': np.round(smbg_inrange['value']*18.01559),
+                 'type': 'scatter', 'name': 'Meter Readings','mode':'markers'
+                 }
+
+    return smbg_plot
+
+
+def GetAnalysisPlots(pd_smbg,pd_cont,basals,the_userprofile,start_time_dt,end_time_dt) :
+
+    return_plots = [[],[]]
 
     start_time_dt64 = pd.to_datetime(start_time_dt)
     end_time_dt64   = pd.to_datetime(end_time_dt)
 
-    print(globals['pd_smbg'][:10],file=sys.stdout)
-    print('first device time:',globals['pd_smbg']['deviceTime'].iloc[0],file=sys.stdout)
+    #print('start_time',start_time_dt)
+    #print('end_time',end_time_dt)
 
-    smbg = globals['pd_smbg']
-    smbg_inrange = smbg[(smbg['deviceTime_dt'] > start_time_dt64) & (smbg['deviceTime_dt'] < end_time_dt64)]
+    containers = []
 
-    print('start_time',start_time_dt)
-    print('end_time',end_time_dt)
+    # food, measurements, insulin, square-wave, dual-wave
+    containers += ManageBGActions.GetSettingsIndependentContainers(pd_smbg,pd_cont,start_time_dt,end_time_dt)
+    containers.sort(key=lambda x: x.iov_0_utc)
 
-    duration_hr = (end_time_dt - start_time_dt).total_seconds()/3600.
+    # basals
+    containers += ManageBGActions.GetBasals(basals,the_userprofile,start_time_dt,end_time_dt)
 
-    do_analysis = (duration_hr < 48)
+    # prediction plot
+    prediction_plot = ManageBGActions.GetPredictionPlot(the_userprofile,containers,start_time_dt64,end_time_dt64)
+    return_plots[0].append(prediction_plot)
 
-    top_plot = {'x': smbg_inrange['deviceTime'],
-                'y': np.round(smbg_inrange['value']*18.01559),
-                'type': 'scatter', 'name': 'Meter Readings','mode':'markers'
-                }
+    # delta plots
+    delta_plots = ManageBGActions.GetDeltaPlots(the_userprofile,containers,start_time_dt64,end_time_dt64)
+    for plot in delta_plots :
+        return_plots[1].append(plot)
 
-    # Analysis plot - two subplots
-    if (do_analysis) :
-        fig = plotly.subplots.make_subplots(rows=2, cols=1,
-                                            shared_xaxes=True,
-                                            vertical_spacing=0.02)
-        fig.append_trace(top_plot,1,1)
-        fig.update_yaxes(title_text="BG (mg/dL)", row=1, col=1)
-        fig.update_yaxes(title_text=u"\u0394"+" BG (mg/dL/hr)", row=2, col=1)
-        fig.update_xaxes(range=[start_time_dt, end_time_dt])
-
-        containers = []
-
-        # food, measurements, insulin, square-wave, dual-wave
-        containers += ManageBGActions.GetSettingsIndependentContainers(globals,start_time_dt,end_time_dt)
-
-        containers.sort(key=lambda x: x.iov_0_utc)
-
-        # basals
-        containers += ManageBGActions.GetBasals(globals,start_time_dt,end_time_dt)
-
-        # prediction plot
-        prediction_plot = ManageBGActions.GetPredictionPlot(globals,containers,start_time_dt64,end_time_dt64)
-        fig.append_trace(prediction_plot,1,1)
-
-        # delta plots
-        delta_plots = ManageBGActions.GetDeltaPlots(globals,containers,start_time_dt64,end_time_dt64)
-        for plot in delta_plots :
-            fig.append_trace(plot,2,1)
-
-    # Overview plot - single plot
-    else :
-        fig = plotly.subplots.make_subplots(rows=1, cols=1,
-                                            shared_xaxes=True)
-        fig.append_trace(top_plot,1,1)
-
-    fig.update_layout(margin=dict(l=20, r=20, t=20, b=20),
-                      paper_bgcolor="LightSteelBlue",
-                      )
-
-    return fig
+    return return_plots

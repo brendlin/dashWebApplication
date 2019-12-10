@@ -2,10 +2,10 @@ from BGModel import Settings
 import datetime
 import sys
 
-def LoadFromJsonData(globals) :
+def LoadFromJsonData(data) :
+    # give this function the full data frame.
 
     settings_frame = None
-    data = globals['global_df']
 
     if 'basal' in data.columns :
         settings_frame = data[(data['type'] == 'pumpSettings') & (data['basal'].notnull())]
@@ -13,8 +13,7 @@ def LoadFromJsonData(globals) :
         print('Warning: no pump settings are available apparently.',file=sys.stdout)
         return
         
-    globals['pd_settings'] = settings_frame
-    globals['bwz_settings'] = []
+    all_profiles = []
 
     settings_sensitivity = Settings.UserSetting('Sensitivity')
     settings_ric = Settings.UserSetting('RIC')
@@ -71,10 +70,10 @@ def LoadFromJsonData(globals) :
         the_userprofile.AddHourlyGlucoseFromArrays(settings_basal.latestSettingsSnapshot(),
                                                    settings_duration.latestSettingsSnapshot())
         the_userprofile.AddDurationFromArray(settings_duration.latestSettingsSnapshot())
+
         #the_userprofile.Print()
-        globals['bwz_settings'].append(the_userprofile)
-        globals['current_setting'] = globals['bwz_settings'][-1]
-        globals['basal_schedules'] = settings_basal
+
+        all_profiles.append([deviceTime,the_userprofile])
 
     #print('settings done.')
-    return
+    return all_profiles, settings_basal

@@ -2,24 +2,23 @@
 from BGModel.BGActionClasses import *
 import datetime
 import time
+import pandas as pd
 
-def GetSettingsIndependentContainers(globals,start_time_dt64,end_time_dt64) :
+def GetSettingsIndependentContainers(pd_smbg,pd_cont,start_time_dt64,end_time_dt64) :
 
     tag = '%s - %s'%(start_time_dt64.strftime('%Y-%m-%dT%H:%M:%S'),
                      end_time_dt64.strftime('%Y-%m-%dT%H:%M:%S'))
 
-    if tag in globals['containers'].keys() :
-        return globals['containers'][tag]
+#     if tag in globals['containers'].keys() :
+#         return globals['containers'][tag]
 
     containers = []
-
-    data = globals['global_df']
 
     st_relevantEvents = start_time_dt64 - datetime.timedelta(hours=12)
     st_oneDayBefore = start_time_dt64 - datetime.timedelta(hours=24)
 
     # measurement
-    bgs = data[(data['type'] == 'smbg') & ((data['deviceTime_dt'] > st_oneDayBefore) & (data['deviceTime_dt'] < end_time_dt64))]
+    bgs = pd_smbg[(pd.to_datetime(pd_smbg['deviceTime']) > st_oneDayBefore) & (pd.to_datetime(pd_smbg['deviceTime']) < end_time_dt64)]
     for i in range(len(bgs)) :
 
         entry = bgs.iloc[i]
@@ -34,11 +33,11 @@ def GetSettingsIndependentContainers(globals,start_time_dt64,end_time_dt64) :
         containers.append(c)
 
         # This will exit after the first measurement before our time of interest
-        if bgs.iloc[i]['deviceTime_dt'] < start_time_dt64 :
+        if pd.to_datetime(bgs.iloc[i]['deviceTime']) < start_time_dt64 :
             break
 
     # insulin
-    insulins = data[(data['type'] == 'bolus') & ((data['deviceTime_dt'] > st_relevantEvents) & (data['deviceTime_dt'] < end_time_dt64))]
+    insulins = pd_cont[(pd_cont['type'] == 'bolus') & (pd.to_datetime(pd_cont['deviceTime']) > st_relevantEvents) & (pd.to_datetime(pd_cont['deviceTime']) < end_time_dt64)]
     for i in range(len(insulins)) :
 
         entry = insulins.iloc[i]
@@ -64,7 +63,7 @@ def GetSettingsIndependentContainers(globals,start_time_dt64,end_time_dt64) :
 
         containers.append(c)
 
-    foods = data[(data['type'] == 'wizard') & ((data['deviceTime_dt'] > st_relevantEvents) & (data['deviceTime_dt'] < end_time_dt64))]
+    foods = pd_cont[(pd_cont['type'] == 'wizard') & (pd.to_datetime(pd_cont['deviceTime']) > st_relevantEvents) & (pd.to_datetime(pd_cont['deviceTime']) < end_time_dt64)]
     for i in range(len(foods)) :
         entry = foods.iloc[i]
 
@@ -73,28 +72,25 @@ def GetSettingsIndependentContainers(globals,start_time_dt64,end_time_dt64) :
 
         containers.append(c)
 
-    print('tag:',tag)
-    globals['containers'][tag] = containers
+    # print('tag:',tag)
+    # globals['containers'][tag] = containers
 
     # for c in containers :
     #     print(time.ctime(c.iov_0_utc),c.__class__)
 
-    return globals['containers'][tag]
+    return containers
 
-def GetBasals(globals,start_time_dt64,end_time_dt64) :
+def GetBasals(basals,the_userprofile,start_time_dt64,end_time_dt64) :
 
     containers = []
     input_containers = []
 
     st_oneDayBefore = start_time_dt64 - datetime.timedelta(hours=24)
 
-    # print(globals['basal_schedules'].settings_24h)
-    # print(globals['basal_schedules'].getValidSnapshotAtTime(start_time_dt64.strftime('%Y-%m-%dT%H:%M:%S')))
-
-    basal_atTheTime = globals['basal_schedules'].getValidSnapshotAtTime(start_time_dt64.strftime('%Y-%m-%dT%H:%M:%S'))
+    basal_atTheTime = basals.getValidSnapshotAtTime(start_time_dt64.strftime('%Y-%m-%dT%H:%M:%S'))
     basal = BasalInsulin(st_oneDayBefore.timestamp(),end_time_dt64.timestamp(),
                          basal_atTheTime, # np.array
-                         globals['current_setting'].InsulinSensitivity, # list of size 48
+                         the_userprofile.InsulinSensitivity, # list of size 48
                          input_containers)
 
     containers.append(basal)
@@ -106,9 +102,7 @@ def GetBasals(globals,start_time_dt64,end_time_dt64) :
 
     return containers
 
-def GetDeltaPlots(globals,containers,start_time_dt64,end_time_dt64) :
-
-    the_userprofile = globals['current_setting']
+def GetDeltaPlots(the_userprofile,containers,start_time_dt64,end_time_dt64) :
 
     ret_plots = []
 
@@ -187,7 +181,7 @@ def GetDeltaPlots(globals,containers,start_time_dt64,end_time_dt64) :
 
     return ret_plots
 
-def GetPredictionPlot(globals,containers,start_time_dt64,end_time_dt64) :
+def GetPredictionPlot(the_userprofile,containers,start_time_dt64,end_time_dt64) :
 
     st_relevantEvents = start_time_dt64 - datetime.timedelta(hours=12)
     st_firstBG = min(list((c.iov_0_utc if c.IsMeasurement() else 99999999999 for c in containers)))
@@ -196,8 +190,6 @@ def GetPredictionPlot(globals,containers,start_time_dt64,end_time_dt64) :
     delta_sec = int(0.1*3600)
     x_times_utc = np.array(range(int(st_firstBG),int(end_time_dt64.timestamp()),delta_sec))
     x_times_datetime = list(datetime.datetime.fromtimestamp(a) for a in x_times_utc)
-
-    the_userprofile = globals['current_setting']
 
     net_integral = None
 
