@@ -27,12 +27,6 @@ defaults = {'sensitivity':[50,25,100,1],
 # starting-point for echos-master
 for setting in ['sensitivity','food','liver'] :
 
-    echos_master = html.Div(id='slider-echos-master-%s'%(setting),
-                            style = {'height':hecho},
-                            children = bufferLeftEcho # + echos
-                            )
-    slider_divs.append(echos_master)
-
     sliders = list(html.Div(style = {"height":hsliders,'width': '2.4%','display':'inline-block'},
                             children = dcc.Slider(id='slider-%s-%d'%(setting,i),
                                                   value=defaults[setting][0],
@@ -100,3 +94,32 @@ def UpdateSlider(setting,i,the_userprofile_json) :
 #     print('i is',i,'hour is',(i-6)%24,'value is',result)
 
     return result
+
+#------------------------------------------------------------------
+def ConvertSlidersToProfile(ta,tf,sliders) :
+
+    the_userprofile = Settings.TrueUserProfile()
+
+    i_sens = 0
+    i_food = 1
+    i_liver = 2
+
+    for i in range(24) :
+
+        # output i, because we have this stupid 6-hour offset.
+        io = ((i+6)*2)%48
+
+        the_userprofile.InsulinSensitivity[io] = -int(sliders[24*i_sens + i])
+        the_userprofile.FoodSensitivity[io]    = float(sliders[24*i_food + i])
+        the_userprofile.LiverHourlyGlucose[io] = int(sliders[24*i_liver + i])
+        the_userprofile.InsulinTa[io]          = ta
+        the_userprofile.FoodTa[io]             = tf
+
+        # on the half-hour (just the same as above)
+        the_userprofile.InsulinSensitivity[io+1] = -int(sliders[24*i_sens + i])
+        the_userprofile.FoodSensitivity[io+1]    = float(sliders[24*i_food + i])
+        the_userprofile.LiverHourlyGlucose[io+1] = int(sliders[24*i_liver + i])
+        the_userprofile.InsulinTa[io+1]          = ta
+        the_userprofile.FoodTa[io+1]             = tf
+
+    return the_userprofile.toJson()

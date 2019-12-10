@@ -296,18 +296,19 @@ def update_derived_table(table,ta):
 
 
 #
-# Update the active settings from the table
+# Update the active settings from the sliders
 #
 @app.callback(Output('active-profile', 'children'),
-              [Input('base_settings_table', 'data'),
-               Input('insulin-decay-time', 'value'),
-               Input('food-decay-time', 'value')])
-def update_active_profile(table,ta,tf):
+              [Input('insulin-decay-time', 'value'),
+               Input('food-decay-time', 'value')] +
+              list(Input('slider-%s-%d'%(setting,i),'value') for setting in ['sensitivity','food','liver'] for i in range(24)),
+              )
+def update_active_profile(ta,tf,*sliders):
 
     if (not ta) or (not tf) :
         raise PreventUpdate
 
-    return SettingsTableFunctions.ConvertBaseTableToProfile(table,ta,tf)
+    return SettingsSliders.ConvertSlidersToProfile(ta,tf,sliders)
 
 #
 # Update the sliders from the new profile
@@ -323,7 +324,7 @@ def update_sliders_from_newdata(new_profile_selected_from_dropdown) :
     for setting in ['sensitivity','food','liver'] :
         for i in range(24) :
             outputs.append(SettingsSliders.UpdateSlider(setting,i,new_profile_selected_from_dropdown))
-    print(outputs)
+
     return outputs
 
 app.title = 'Kurt Webpage'
