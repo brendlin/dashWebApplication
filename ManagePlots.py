@@ -32,7 +32,9 @@ def GetPlotSMBG(pd_smbg,start_time_dt,end_time_dt) :
 def GetPlotCGM(pd_cgm,start_time_dt,end_time_dt) :
 
     pd_cgm['Time_dt'] = pd.to_datetime(pd_cgm['Time'])
-    cgm_inrange = pd_cgm[(pd_cgm['Time_dt'] > start_time_dt) & (pd_cgm['Time_dt'] < end_time_dt)]
+
+    # [:] to avoid SettingWithCopyWarning
+    cgm_inrange = pd_cgm[:][(pd.to_datetime(pd_cgm['Time']) > start_time_dt) & (pd.to_datetime(pd_cgm['Time']) < end_time_dt)]
     cgm_inrange.sort_values(by=['Time_dt'],inplace=True)
 
     cgm_plot = {'x': cgm_inrange['Time_dt'],

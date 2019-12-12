@@ -26,17 +26,17 @@ for row in defaults_base :
 
 #gradient =     ["#776BFF", "#8168EC", "#8B66D9", "#9663C6", "#A061B3", "#AA5EA0", "#B55C8D", "#BF597A", "#C95767", "#D45555"] # len 10
 gradient = ["#ADC3FF", "#B1BCF2", "#B5B6E5", "#B9B0D8", "#BDAACB", "#C1A4BF", "#C59EB2", "#C998A5", "#CD9298", "#D18C8C"]
-bin_edges = {0:list(range(40,90,5))+[900], # len 11
-             1:list(range(40,90,5))+[900], # len 11
-             2:[2.0, 2.4, 2.8, 3.2, 3.6, 4.0, 4.4, 4.8, 5.2, 5.6, 900], # len 11
-             3:[2.0, 2.4, 2.8, 3.2, 3.6, 4.0, 4.4, 4.8, 5.2, 5.6, 900], # len 11
-             4:list(range(40,90,5))+[900],
-             5:list(range(40,90,5))+[900]}
+bin_edges = {0:[0] + list(range(45,90,5))+[900], # len 11
+             1:[0] + list(range(45,90,5))+[900], # len 11
+             2:[0.0, 2.4, 2.8, 3.2, 3.6, 4.0, 4.4, 4.8, 5.2, 5.6, 900], # len 11
+             3:[0.0, 2.4, 2.8, 3.2, 3.6, 4.0, 4.4, 4.8, 5.2, 5.6, 900], # len 11
+             4:[0] + list(range(45,90,5))+[900],
+             5:[0] + list(range(45,90,5))+[900]}
 
-bin_edges_der = {0:list(range(10,30,2))+[900], # len 11
-                 1:list(range(10,30,2))+[900], # len 11
-                 2:[0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 900], # len 11
-                 3:[0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 900], # len 11
+bin_edges_der = {0:[0] + list(range(12,30,2))+[900], # len 11
+                 1:[0] + list(range(12,30,2))+[900], # len 11
+                 2:[0.0, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 900], # len 11
+                 3:[0.0, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 900], # len 11
                  }
 
 table_color_rules = []
@@ -177,14 +177,14 @@ def UpdateDerivedTable(table,insulin_decay_time):
     for i in range(48) :
         try :
             ric48.append( int( round( sens[i]/float(fsens[i]),0) ) )
-        except TypeError :
+        except (TypeError, ZeroDivisionError) as e:
             ric48.append('ERR')
 
         i_offset = (i+offset)%48
 
         try :
             basal48.append( round( liver[i_offset]/float(sens[i]), 1) )
-        except TypeError :
+        except (TypeError, ZeroDivisionError) as e:
             basal48.append('ERR')
 
     # populate the rows
