@@ -24,6 +24,37 @@ for row in defaults_base :
     for i in range(24) :
         table_default_base_settings[-1][i] = row[1]
 
+#gradient =     ["#776BFF", "#8168EC", "#8B66D9", "#9663C6", "#A061B3", "#AA5EA0", "#B55C8D", "#BF597A", "#C95767", "#D45555"] # len 10
+gradient = ["#ADC3FF", "#B1BCF2", "#B5B6E5", "#B9B0D8", "#BDAACB", "#C1A4BF", "#C59EB2", "#C998A5", "#CD9298", "#D18C8C"]
+bin_edges = {0:list(range(40,90,5))+[900], # len 11
+             1:list(range(40,90,5))+[900], # len 11
+             2:[2.0, 2.4, 2.8, 3.2, 3.6, 4.0, 4.4, 4.8, 5.2, 5.6, 900], # len 11
+             3:[2.0, 2.4, 2.8, 3.2, 3.6, 4.0, 4.4, 4.8, 5.2, 5.6, 900], # len 11
+             4:list(range(40,90,5))+[900],
+             5:list(range(40,90,5))+[900]}
+
+bin_edges_der = {0:list(range(10,30,2))+[900], # len 11
+                 1:list(range(10,30,2))+[900], # len 11
+                 2:[0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 900], # len 11
+                 3:[0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 900], # len 11
+                 }
+
+table_color_rules = []
+for i,color in enumerate(gradient) :
+    for column in range(24) :
+        for row in range(6) :
+            table_color_rules.append({'if': {'row_index':row,'column_id':str(column),
+                                             'filter_query':'%.1f <= {%d} && {%d} < %.1f'%(bin_edges[row][i],column,column,bin_edges[row][i+1])},
+                                      'backgroundColor':gradient[i]})
+
+table_color_rules_der = []
+for i,color in enumerate(gradient) :
+    for column in range(24) :
+        for row in range(4) :
+            table_color_rules_der.append({'if': {'row_index':row,'column_id':str(column),
+                                                 'filter_query':'%.1f <= {%d} && {%d} < %.1f'%(bin_edges_der[row][i],column,column,bin_edges_der[row][i+1])},
+                                          'backgroundColor':gradient[i]})
+
 tmp1 = DataTable(id='base_settings_table',
                  columns=[{"name": name, "id": str(i-1), "editable": (i!= 0)} for i,name in enumerate(table_columns_base_settings)],
                  data=[],
@@ -38,7 +69,7 @@ tmp1 = DataTable(id='base_settings_table',
                  style_data_conditional=[{'if': {'row_index':   1 },'border_top':'0px'},
                                          {'if': {'row_index':   3 },'border_top':'0px'},
                                          {'if': {'row_index':   5 },'border_top':'0px'},
-                                         ],
+                                         ] + table_color_rules,
                  style_cell_conditional=[{'if': {'column_id': '-1'},'width': '15%'},
                                          {'if': {'column_id': '-1'},'textAlign': 'left'}],
                  )
@@ -56,11 +87,11 @@ tmp2 = DataTable(id='derived_settings_table',
                              # all three widths are needed
                              'minWidth': '3%','width': '3%', 'maxWidth': '3%',
                              'whiteSpace': 'normal',
-                             'color':'gray',
+                             #'color':'gray',
                              },
                  style_data_conditional=[{'if': {'row_index':   1 },'border_top':'0px'},
                                          {'if': {'row_index':   3 },'border_top':'0px'},
-                                         ],
+                                         ] + table_color_rules_der,
                  style_cell_conditional=[{'if': {'column_id': '-1'},'width': '15%'},
                                          {'if': {'column_id': '-1'},'textAlign': 'left'},
                                          {'if': {'column_id': '-1'},'color': 'black'}],
