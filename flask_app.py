@@ -45,12 +45,19 @@ app.layout = html.Div(
         html.Div(children='''The following works with Tidepool and Medtronic 551.'''),
 
         html.Div([html.Div(dcc.Upload(id='upload-data',
-                                      children=[html.Button('Upload your own data from Tidepool',style={'width':'400px','display':'table-cell'})],
+                                      children=[html.Button('Upload from Tidepool',style={'width':'95%','display':'table-cell'})],
                                       multiple=False,
-                                      style={'width':'400px','display':'table-cell'}
+                                      style={'width':'300px','display':'table-cell'}
                                       ),
-                           style={'display':'table-cell','width':'450px'}),
-                  html.Div(id='uploaded-input-data-status',children=None,style={'display':'table-cell','width':'50%'})
+                           style={'display':'table-cell','width':'25%'}),
+                  html.Div(id='uploaded-input-data-status',children=None,style={'display':'table-cell','width':'25%','align':'left'}),
+                  html.Div(dcc.Upload(id='upload-libre',
+                                      children=[html.Button('Upload from Libre',style={'width':'95%','display':'table-cell'})],
+                                      multiple=False,
+                                      style={'width':'25%','display':'table-cell'}
+                                      ),
+                           style={'display':'table-cell','width':'25%'}),
+                  html.Div(id='uploaded-libre-status',children=None,style={'display':'table-cell','width':'25%','align':'left'}),
                   ],
                  style={'align':'left','width':'100%','display':'table'}
                  ),
@@ -67,6 +74,7 @@ app.layout = html.Div(
         html.Div(id='upload-smbg-panda'     ,style={'display': 'none'},children=None), # This stores the historical basal schedules
         html.Div(id='upload-container-panda',style={'display': 'none'},children=None), # This stores the historical basal schedules
         html.Div(id='upload-settings-panda' ,style={'display': 'none'},children=None), # This stores the historical basal schedules
+        html.Div(id='upload-cgm-panda'      ,style={'display': 'none'},children=None), # This stores the historical basal schedules
 
         html.Div(children=['''Pick a date:''',
                            dcc.DatePickerSingle(id='my-date-picker-single',
@@ -91,7 +99,7 @@ app.layout = html.Div(
                 ]
                  ),
 
-        html.Div(html.Div([dcc.Dropdown(id='profiles-dropdown',placeholder='Your profiles',style={'width':'250px','display': 'inline-block','verticalAlign':'middle'}),
+        html.Div(html.Div([dcc.Dropdown(id='profiles-dropdown',placeholder='Your profiles',style={'width':'250px','display': 'inline-block','verticalAlign':'middle'},searchable=False),
                            html.Div(style={'width':'20px','display':'inline-block'}),
                            html.Label('Insulin decay time (hr): ',style={'width': '20%','display': 'inline-block','verticalAlign':'middle'}),
                            dcc.Input(id='insulin-decay-time', value='4', type='text',style={'width': '5%','display': 'inline-block','align': 'left','marginRight':'5%','verticalAlign':'middle'}),
@@ -137,6 +145,17 @@ def update_file(contents, name):
     return LoadNewFile.LoadNewFile(contents, name)
 
 #
+# Upload callback (Libre)
+#
+@app.callback([Output('uploaded-libre-status','children'),
+               Output('upload-cgm-panda', 'children')],
+              [Input('upload-data', 'contents')],
+              [State('upload-data', 'filename')])
+def update_file(contents, name):
+
+    return LoadNewFile.LoadLibreFile(contents, name)
+
+#
 # Update the plot
 #
 @app.callback(Output('display-tidepool-graph', 'figure'),
@@ -146,8 +165,9 @@ def update_file(contents, name):
                Input('overview-button','n_clicks_timestamp')],
               [State('my-date-picker-single', 'date'),
                State('all-basal-schedules','children'),
-               State('upload-container-panda','children'),])
-def update_plot(pd_smbg_json,active_profile_json,show_this_day_t,show_overview_t,date,basals_json,pd_cont_json):
+               State('upload-container-panda','children'),
+               State('upload-cgm-panda','children'),])
+def update_plot(pd_smbg_json,active_profile_json,show_this_day_t,show_overview_t,date,basals_json,pd_cont_json,pd_cgm_json):
 
     #print('basals_json',basals_json)
     #print('active_profile_json',active_profile_json)
@@ -195,6 +215,14 @@ def update_plot(pd_smbg_json,active_profile_json,show_this_day_t,show_overview_t
     fig.update_xaxes(range=[start_time_dt, end_time_dt])
     fig.update_layout(margin=dict(l=20, r=20, t=20, b=20),paper_bgcolor="LightSteelBlue",)
 
+    # Add the cgm
+    if pd_cgm_json and doDayPlot :
+        pd_cgm = pd.read_json(pd_cgm_json)
+
+        cgm_plot = ManagePlots.GetPlotCGM(pd_cgm,start_time_dt,end_time_dt)
+        fig.append_trace(cgm_plot,1,1)
+
+    # Add the smbg plot
     smbg_plot = ManagePlots.GetPlotSMBG(pd_smbg,start_time_dt,end_time_dt)
     fig.append_trace(smbg_plot,1,1)
 

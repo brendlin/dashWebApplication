@@ -54,10 +54,6 @@ def LoadNewFile(contents, name) :
         if 'error' in status :
             return status,None,None,min_date,max_date,month,day,None,None
 
-        find_errors = list('error' in a for a in text_outputs)
-        if (True in find_errors) :
-            return text_outputs[find_errors.index(True)]
-
     # print('updating global_smbg',file=sys.stdout)
 
     # deviceTime in "datetime"
@@ -84,3 +80,29 @@ def LoadNewFile(contents, name) :
     profiles_bundled = '###'.join(list('$$$'.join([profile[0],profile[1].toJson()]) for profile in all_profiles))
 
     return status, settings_basal.toJson(), profiles_bundled, min_date, max_date, month, day, pd_containers.to_json(), pd_smbg.to_json()
+
+#
+# For the upload callback (uses process_input_file)
+#
+def LoadLibreFile(contents, name) :
+    text_outputs = []
+
+    if contents is None:
+        # Use the default file
+        pd_all = pd.read_csv('libre.csv')
+        while len(pd_all.columns) == 1 :
+            pd_all = pd.read_csv('libre.csv',skiprows=1,sep='\t',lineterminator='\n')
+        status = 'Using default libre file.'
+
+    else :
+
+        status, pd_all = process_input_file(contents, name)
+
+        if 'error' in status :
+            return status,None
+
+    # Take maximum of historic and scan glucose (avoids Nan)
+    pd_all['Glucose'] = pd_all[['Historic Glucose (mg/dL)','Scan Glucose (mg/dL)']].max(axis=1)
+    pd_cgm = pd_all[pd_all['Glucose'].notnull()][['Time','Glucose']]
+
+    return status, pd_cgm.to_json()
