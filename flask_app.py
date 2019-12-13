@@ -40,9 +40,9 @@ app = dash.Dash(external_stylesheets=external_stylesheets)
 app.layout = html.Div(
     children=[
 
-        html.H5(children='Modeling blood glucose and the effects of insulin'),
+        html.H5(children='Modeling blood glucose and the effects of insulin.'),
 
-        html.Div(children='''The following works with Tidepool and Medtronic 551.'''),
+        #html.Div(children='''The following works with Tidepool and Medtronic 551.'''),
 
         html.Div([html.Div(dcc.Upload(id='upload-data',
                                       children=[html.Button('Upload from Tidepool',style={'width':'95%','display':'table-cell'})],
@@ -68,13 +68,14 @@ app.layout = html.Div(
         html.Div(id='custom-profiles'   ,style={'display': 'none'},children=None), # This will store the json text
 
         # Saved basal schedules (panda)
-        html.Div(id='all-basal-schedules',style={'display':'none'},children='blahblah'), # This stores the historical basal schedules
+        html.Div(id='all-basal-schedules',style={'display':'none'},children=None), # This stores the historical basal schedules
 
         # Sub-panda datasets from raw file
         html.Div(id='upload-smbg-panda'     ,style={'display': 'none'},children=None), # This stores the historical basal schedules
         html.Div(id='upload-container-panda',style={'display': 'none'},children=None), # This stores the historical basal schedules
         html.Div(id='upload-settings-panda' ,style={'display': 'none'},children=None), # This stores the historical basal schedules
         html.Div(id='upload-cgm-panda'      ,style={'display': 'none'},children=None), # This stores the historical basal schedules
+        html.Div(id='upload-basal-panda'    ,style={'display': 'none'},children=None),
 
         html.Div(children=['''Pick a date:''',
                            dcc.DatePickerSingle(id='my-date-picker-single',
@@ -90,12 +91,13 @@ app.layout = html.Div(
 
 
         html.Div(children = [
-                html.Hr(),  # horizontal line
+                #html.Hr(),  # horizontal line
                 dcc.Graph(id='display-tidepool-graph',
                           #config={'staticPlot':True,},
-                          figure={}
+                          figure={},
+                          style={'height': 400,}
                           ), # Graph
-                html.Hr(),  # horizontal line
+                #html.Hr(),  # horizontal line
                 ]
                  ),
 
@@ -137,6 +139,7 @@ app.layout = html.Div(
                Output('my-date-picker-single', 'date'),
                Output('upload-container-panda', 'children'),
                Output('upload-smbg-panda','children'),
+               Output('upload-basal-panda','children'),
                ],
               [Input('upload-data', 'contents')],
               [State('upload-data', 'filename')])
@@ -166,8 +169,10 @@ def update_file(contents, name):
               [State('my-date-picker-single', 'date'),
                State('all-basal-schedules','children'),
                State('upload-container-panda','children'),
-               State('upload-cgm-panda','children'),])
-def update_plot(pd_smbg_json,active_profile_json,show_this_day_t,show_overview_t,date,basals_json,pd_cont_json,pd_cgm_json):
+               State('upload-cgm-panda','children'),
+               State('upload-basal-panda','children'),
+               ])
+def update_plot(pd_smbg_json,active_profile_json,show_this_day_t,show_overview_t,date,basals_json,pd_cont_json,pd_cgm_json,pd_basal_json):
 
     #print('basals_json',basals_json)
     #print('active_profile_json',active_profile_json)
@@ -235,8 +240,9 @@ def update_plot(pd_smbg_json,active_profile_json,show_this_day_t,show_overview_t
     pd_cont = pd.read_json(pd_cont_json)
     basals = Settings.UserSetting.fromJson(basals_json)
     active_profile = Settings.TrueUserProfile.fromJson(active_profile_json)
+    pd_basal = pd.read_json(pd_basal_json)
 
-    plots = ManagePlots.GetAnalysisPlots(pd_smbg,pd_cont,basals,active_profile,start_time_dt,end_time_dt)
+    plots = ManagePlots.GetAnalysisPlots(pd_smbg,pd_cont,basals,active_profile,start_time_dt,end_time_dt,pd_basal)
     for plot in plots[0] :
         fig.append_trace(plot,1,1)
     for plot in plots[1] :

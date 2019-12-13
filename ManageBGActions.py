@@ -80,10 +80,10 @@ def GetSettingsIndependentContainers(pd_smbg,pd_cont,start_time_dt64,end_time_dt
 
     return containers
 
-def GetBasals(basals,the_userprofile,start_time_dt64,end_time_dt64) :
+#------------------------------------------------------------------
+def GetBasals(basals,the_userprofile,start_time_dt64,end_time_dt64,input_containers) :
 
     containers = []
-    input_containers = []
 
     st_oneDayBefore = start_time_dt64 - datetime.timedelta(hours=24)
 
@@ -102,6 +102,23 @@ def GetBasals(basals,the_userprofile,start_time_dt64,end_time_dt64) :
 
     return containers
 
+#------------------------------------------------------------------
+def GetBasalSpecialContainers(pd_basal,start_time_dt64,end_time_dt64) :
+
+    containers = []
+
+    st_relevantEvents = start_time_dt64 - datetime.timedelta(hours=12)
+    basals = pd_basal[(pd.to_datetime(pd_basal['deviceTime']) > st_relevantEvents) & (pd.to_datetime(pd_basal['deviceTime']) < end_time_dt64)]
+
+    for i in range(len(basals)) :
+        entry = basals.iloc[i]
+        c = TempBasal.FromStringDate(entry['deviceTime'],entry['deviceTime_end_fixed'],entry['percent_fixed'])
+        containers.append(c)
+
+    return containers
+
+
+#------------------------------------------------------------------
 def GetDeltaPlots(the_userprofile,containers,start_time_dt64,end_time_dt64) :
 
     ret_plots = []
@@ -117,13 +134,14 @@ def GetDeltaPlots(the_userprofile,containers,start_time_dt64,end_time_dt64) :
                        'Food':True,
                        'LiverBasalGlucose':True,
                        'BasalInsulin':True,
+                       'LiverFattyGlucose':True,
                        }
 
     for c in reversed(containers) :
 
         classname = c.__class__.__name__
 
-        if classname == 'BGMeasurement' :
+        if not hasattr(c,'getIntegral') :
             continue
 
         if abs(c.getIntegral(start_time_dt64.timestamp(),end_time_dt64.timestamp(),the_userprofile)) < 5 :
@@ -140,11 +158,14 @@ def GetDeltaPlots(the_userprofile,containers,start_time_dt64,end_time_dt64) :
             title = 'Basal Insulin'
         if c.IsBasalGlucose() :
             title = 'Basal Glucose'
+        if c.IsLiverFattyGlucose() :
+            title = '%s Fatty event (%.2f%%, %d mg/dL)'%(timestr,c.fractionOfBasal,c.BGEffect)
 
         the_color = {'InsulinBolus'     :['#66E066','#99EB99'],
                      'Food'             :['#E06666','#EB9999'],
                      'LiverBasalGlucose':['#FFE066','#FFE066'],
                      'BasalInsulin'     :['#ADC2FF','#ADC2FF'],
+                     'LiverFattyGlucose':['Orange','Orange'],
                      }.get(classname)[toggleLightDark[classname]]
         toggleLightDark[classname] = not toggleLightDark[classname]
 
@@ -152,6 +173,7 @@ def GetDeltaPlots(the_userprofile,containers,start_time_dt64,end_time_dt64) :
                       'BasalInsulin'     :'Negative',
                       'LiverBasalGlucose':'Positive',
                       'Food'             :'Positive',
+                      'LiverFattyGlucose':'Positive',
                       }.get(classname)
 
         y_values = np.array(list(c.getBGEffectDerivPerHour(time_ut,the_userprofile) for time_ut in x_times_utc))
@@ -181,13 +203,14 @@ def GetDeltaPlots(the_userprofile,containers,start_time_dt64,end_time_dt64) :
 
     return ret_plots
 
+#------------------------------------------------------------------
 def GetPredictionPlot(the_userprofile,containers,start_time_dt64,end_time_dt64) :
 
     st_relevantEvents = start_time_dt64 - datetime.timedelta(hours=12)
     st_firstBG = min(list((c.iov_0_utc if c.IsMeasurement() else 99999999999 for c in containers)))
 
     # utc times in 6-minute increments
-    delta_sec = int(0.1*3600)
+    delta_sec = int(0.2*3600)
     x_times_utc = np.array(range(int(st_firstBG),int(end_time_dt64.timestamp()),delta_sec))
     x_times_datetime = list(datetime.datetime.fromtimestamp(a) for a in x_times_utc)
 
@@ -196,7 +219,7 @@ def GetPredictionPlot(the_userprofile,containers,start_time_dt64,end_time_dt64) 
     # First add up all of the integrals
     for c in containers :
 
-        if c.__class__.__name__ == 'BGMeasurement' :
+        if not hasattr(c,'getIntegral') :
             continue
 
         y_values = np.array(list(c.getIntegral(st_relevantEvents.timestamp(),time_ut,the_userprofile) for time_ut in x_times_utc))

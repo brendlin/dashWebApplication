@@ -46,7 +46,7 @@ def GetPlotCGM(pd_cgm,start_time_dt,end_time_dt) :
 
     return cgm_plot
 
-def GetAnalysisPlots(pd_smbg,pd_cont,basals,the_userprofile,start_time_dt,end_time_dt) :
+def GetAnalysisPlots(pd_smbg,pd_cont,basals,the_userprofile,start_time_dt,end_time_dt,pd_basal) :
 
     return_plots = [[],[]]
 
@@ -62,8 +62,10 @@ def GetAnalysisPlots(pd_smbg,pd_cont,basals,the_userprofile,start_time_dt,end_ti
     containers += ManageBGActions.GetSettingsIndependentContainers(pd_smbg,pd_cont,start_time_dt,end_time_dt)
     containers.sort(key=lambda x: x.iov_0_utc)
 
+    containers += ManageBGActions.GetBasalSpecialContainers(pd_basal,start_time_dt,end_time_dt)
+
     # basals
-    containers += ManageBGActions.GetBasals(basals,the_userprofile,start_time_dt,end_time_dt)
+    containers += ManageBGActions.GetBasals(basals,the_userprofile,start_time_dt,end_time_dt,containers)
 
     # prediction plot
     prediction_plot = ManageBGActions.GetPredictionPlot(the_userprofile,containers,start_time_dt64,end_time_dt64)

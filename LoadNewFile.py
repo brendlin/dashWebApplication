@@ -4,6 +4,8 @@ import numpy as np
 import base64
 import io
 import datetime
+import math
+import time
 
 import ManageSettings
 
@@ -67,6 +69,43 @@ def LoadNewFile(contents, name) :
     columns_to_save = ['deviceTime','type','subType','duration','normal','extended','carbInput','value']
     pd_containers = pd_all[(pd_all['type'] == 'wizard') | (pd_all['type'] == 'bolus')][columns_to_save]
 
+    # Subset for basal
+    columns_to_save = ['deviceTime','deliveryType','percent','rate','suppressed','duration']
+
+    # Step 1: Pick out all the basals
+    pd_tmp1 = pd_all[(pd_all['type'] == 'basal')][columns_to_save]
+
+    # Step 2: Save only temp, suspend, or entries just after temp, suspend
+    # [:] to avoid a SettingWithCopyWarning
+    pd_tmp2 = pd_tmp1[:][(pd_tmp1['deliveryType'] == 'temp') | (pd_tmp1['deliveryType'].shift(-1) == 'temp') |
+                         (pd_tmp1['deliveryType'] == 'suspend') | (pd_tmp1['deliveryType'].shift(-1) == 'suspend')
+                         ]
+
+    def getPercentFixed(deliveryType,percent,rate,suppressed) :
+        try :
+            if deliveryType == 'suspend' :
+                return 0.0
+            if not math.isnan(percent) :
+                return round(percent,2)
+            return round(rate/float(suppressed['rate']),2)
+        except TypeError :
+            return np.nan
+
+    def getDeviceTimeEndFixed(deviceTime,deviceTime_end,duration) :
+        scheduled_end = pd.to_datetime(deviceTime) + datetime.timedelta(milliseconds=duration)
+        if type(deviceTime_end) != type('') :
+            return scheduled_end.strftime('%Y-%m-%dT%H:%M:%S')
+        return min(pd.to_datetime(deviceTime_end),scheduled_end).strftime('%Y-%m-%dT%H:%M:%S')
+
+    # Step 3: Save the end-times of temp and suspend based on this skimmed pd. Save fixed percent.
+    pd_tmp2['deviceTime_end'] = pd_tmp2['deviceTime'].shift(1)
+    pd_tmp2['percent_fixed'] = np.vectorize(getPercentFixed)(pd_tmp2['deliveryType'],pd_tmp2['percent'],pd_tmp2['rate'],pd_tmp2['suppressed'])
+    pd_tmp2['deviceTime_end_fixed'] = np.vectorize(getDeviceTimeEndFixed)(pd_tmp2['deviceTime'],pd_tmp2['deviceTime_end'],pd_tmp2['duration'])
+
+    # Step 4: now keep only temp or suspend
+    columns_to_save = ['deviceTime','deviceTime_end_fixed','percent_fixed']
+    pd_basal = pd_tmp2[(pd_tmp2['deliveryType'] == 'temp') | (pd_tmp2['deliveryType'] == 'suspend')][columns_to_save]
+
     # dates!
     min_date = min(np.array(pd_smbg['deviceTime'],dtype='datetime64'))
     max_date = max(np.array(pd_smbg['deviceTime'],dtype='datetime64'))
@@ -79,7 +118,7 @@ def LoadNewFile(contents, name) :
     # ###Name1$$$Profile1###Name2$$$Profile2 ... etc.
     profiles_bundled = '###'.join(list('$$$'.join([profile[0],profile[1].toJson()]) for profile in all_profiles))
 
-    return status, settings_basal.toJson(), profiles_bundled, min_date, max_date, month, day, pd_containers.to_json(), pd_smbg.to_json()
+    return status, settings_basal.toJson(), profiles_bundled, min_date, max_date, month, day, pd_containers.to_json(), pd_smbg.to_json(), pd_basal.to_json()
 
 #
 # For the upload callback (uses process_input_file)
