@@ -112,11 +112,68 @@ def GetBasalSpecialContainers(pd_basal,start_time_dt64,end_time_dt64) :
 
     for i in range(len(basals)) :
         entry = basals.iloc[i]
-        c = TempBasal.FromStringDate(entry['deviceTime'],entry['deviceTime_end_fixed'],entry['percent_fixed'])
+
+        # suspend
+        if entry['percent_fixed'] == 0 :
+            c = Suspend.FromStringDate(entry['deviceTime'],entry['deviceTime_end_fixed'])
+
+        else :
+            c = TempBasal.FromStringDate(entry['deviceTime'],entry['deviceTime_end_fixed'],entry['percent_fixed'])
+
         containers.append(c)
+
+    # Merge adjacent temp basals (this is an artifact of how they are saved)
+    def MergeTempBasals(conts) :
+        for i in range(len(conts)-1) :
+            c1 = conts[i]
+            c2 = conts[i+1]
+            if (not c1.IsTempBasal()) or (not c2.IsTempBasal()) :
+                continue
+            if c1.basalFactor != c2.basalFactor :
+                continue
+
+            if c2.iov_1_utc == c1.iov_0_utc :
+                cmerged = TempBasal(c2.iov_0_utc,c1.iov_1_utc,c1.basalFactor)
+                conts.pop(i)
+                conts.pop(i)
+                conts.insert(i,cmerged)
+                return True
+        return False
+
+    try_merge = True
+    while try_merge :
+        try_merge = MergeTempBasals(containers)
+
+    for c in containers :
+        print(datetime.datetime.fromtimestamp(c.iov_0_utc),datetime.datetime.fromtimestamp(c.iov_1_utc),c.basalFactor)
 
     return containers
 
+
+#------------------------------------------------------------------
+def GetSuspend(the_userprofile,containers,start_time_dt,end_time_dt) :
+
+    ret_plots = []
+
+    for c in reversed(containers) :
+
+        if not c.IsSuspend() :
+            continue
+
+        if (c.iov_1_utc < start_time_dt.timestamp()) :
+            continue
+
+        timestr = time.strftime("%H:%M",time.localtime(c.iov_0_utc))
+        tmp_plot = {'x': [datetime.datetime.fromtimestamp(c.iov_0_utc),datetime.datetime.fromtimestamp(c.iov_1_utc)],
+                    'y': [0,0],
+                    'type':'scatter',
+                    'name':'%s Suspend, %.0f min'%(timestr,(c.iov_1_utc-c.iov_0_utc)/60.),
+                    'mode': 'lines',
+                    'line': {'color':'black', 'width':100},
+                    }
+        ret_plots.append(tmp_plot)
+
+    return ret_plots
 
 #------------------------------------------------------------------
 def GetDeltaPlots(the_userprofile,containers,start_time_dt64,end_time_dt64) :

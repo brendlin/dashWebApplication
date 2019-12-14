@@ -50,12 +50,6 @@ def GetAnalysisPlots(pd_smbg,pd_cont,basals,the_userprofile,start_time_dt,end_ti
 
     return_plots = [[],[]]
 
-    start_time_dt64 = pd.to_datetime(start_time_dt)
-    end_time_dt64   = pd.to_datetime(end_time_dt)
-
-    #print('start_time',start_time_dt)
-    #print('end_time',end_time_dt)
-
     containers = []
 
     # food, measurements, insulin, square-wave, dual-wave
@@ -68,11 +62,16 @@ def GetAnalysisPlots(pd_smbg,pd_cont,basals,the_userprofile,start_time_dt,end_ti
     containers += ManageBGActions.GetBasals(basals,the_userprofile,start_time_dt,end_time_dt,containers)
 
     # prediction plot
-    prediction_plot = ManageBGActions.GetPredictionPlot(the_userprofile,containers,start_time_dt64,end_time_dt64)
+    prediction_plot = ManageBGActions.GetPredictionPlot(the_userprofile,containers,start_time_dt,end_time_dt)
     return_plots[0].append(prediction_plot)
 
+    # suspend (a plot for now)
+    suspends = ManageBGActions.GetSuspend(the_userprofile,containers,start_time_dt,end_time_dt)
+    for plot in suspends :
+        return_plots[1].append(plot)
+
     # delta plots
-    delta_plots = ManageBGActions.GetDeltaPlots(the_userprofile,containers,start_time_dt64,end_time_dt64)
+    delta_plots = ManageBGActions.GetDeltaPlots(the_userprofile,containers,start_time_dt,end_time_dt)
     for plot in delta_plots :
         return_plots[1].append(plot)
 
