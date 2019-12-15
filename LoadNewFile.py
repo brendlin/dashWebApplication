@@ -44,6 +44,9 @@ def LoadNewFile(contents, name) :
     month = datetime.datetime(2017, 8, 5)
     day = str(datetime.datetime(2017, 8, 25, 23, 59, 59))
 
+    generic_profile = ['1970-01-01T00:00:01',ManageSettings.getGenericUserProfile()]
+    generic_profile_bundled = '$$$'.join([generic_profile[0],generic_profile[1].toJson()])
+
     if contents is None:
         # Use the default file
         pd_all = pd.read_json('download.json')
@@ -54,7 +57,7 @@ def LoadNewFile(contents, name) :
         status, pd_all = process_input_file(contents, name)
 
         if 'error' in status :
-            return status,None,None,min_date,max_date,month,day,None,None
+            return status,None,None,generic_profile_bundled,min_date,max_date,month,day,None,None,None
 
     # print('updating global_smbg',file=sys.stdout)
 
@@ -113,12 +116,15 @@ def LoadNewFile(contents, name) :
     day      = max(np.array(pd_smbg['deviceTime'],dtype='datetime64'))
 
     # These are classes
+    # all_profiles is a list of [date,profile]
     all_profiles, settings_basal = ManageSettings.LoadFromJsonData(pd_all)
+    all_profiles.insert(0,generic_profile)
+    last_profile_bundled = '$$$'.join([all_profiles[-1][0],all_profiles[-1][1].toJson()])
 
     # ###Name1$$$Profile1###Name2$$$Profile2 ... etc.
     profiles_bundled = '###'.join(list('$$$'.join([profile[0],profile[1].toJson()]) for profile in all_profiles))
 
-    return status, settings_basal.toJson(), profiles_bundled, min_date, max_date, month, day, pd_containers.to_json(), pd_smbg.to_json(), pd_basal.to_json()
+    return status, settings_basal.toJson(), profiles_bundled, last_profile_bundled, min_date, max_date, month, day, pd_containers.to_json(), pd_smbg.to_json(), pd_basal.to_json()
 
 #
 # For the upload callback (uses process_input_file)

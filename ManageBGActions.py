@@ -144,14 +144,11 @@ def GetBasalSpecialContainers(pd_basal,start_time_dt64,end_time_dt64) :
     while try_merge :
         try_merge = MergeTempBasals(containers)
 
-    for c in containers :
-        print(datetime.datetime.fromtimestamp(c.iov_0_utc),datetime.datetime.fromtimestamp(c.iov_1_utc),c.basalFactor)
-
     return containers
 
 
 #------------------------------------------------------------------
-def GetSuspend(the_userprofile,containers,start_time_dt,end_time_dt) :
+def GetSuspendPlot(the_userprofile,containers,start_time_dt,end_time_dt) :
 
     ret_plots = []
 
@@ -174,6 +171,23 @@ def GetSuspend(the_userprofile,containers,start_time_dt,end_time_dt) :
         ret_plots.append(tmp_plot)
 
     return ret_plots
+
+#------------------------------------------------------------------
+def GetContainers(pd_smbg,pd_cont,basals,the_userprofile,start_time_dt,end_time_dt,pd_basal) :
+
+    containers = []
+
+    # food, measurements, insulin, square-wave, dual-wave
+    containers += GetSettingsIndependentContainers(pd_smbg,pd_cont,start_time_dt,end_time_dt)
+    containers.sort(key=lambda x: x.iov_0_utc)
+
+    # Get containers to feed into basal
+    containers += GetBasalSpecialContainers(pd_basal,start_time_dt,end_time_dt)
+
+    # basals
+    containers += GetBasals(basals,the_userprofile,start_time_dt,end_time_dt,containers)
+
+    return containers
 
 #------------------------------------------------------------------
 def GetDeltaPlots(the_userprofile,containers,start_time_dt64,end_time_dt64) :

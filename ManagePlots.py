@@ -50,23 +50,14 @@ def GetAnalysisPlots(pd_smbg,pd_cont,basals,the_userprofile,start_time_dt,end_ti
 
     return_plots = [[],[]]
 
-    containers = []
-
-    # food, measurements, insulin, square-wave, dual-wave
-    containers += ManageBGActions.GetSettingsIndependentContainers(pd_smbg,pd_cont,start_time_dt,end_time_dt)
-    containers.sort(key=lambda x: x.iov_0_utc)
-
-    containers += ManageBGActions.GetBasalSpecialContainers(pd_basal,start_time_dt,end_time_dt)
-
-    # basals
-    containers += ManageBGActions.GetBasals(basals,the_userprofile,start_time_dt,end_time_dt,containers)
+    containers = ManageBGActions.GetContainers(pd_smbg,pd_cont,basals,the_userprofile,start_time_dt,end_time_dt,pd_basal)
 
     # prediction plot
     prediction_plot = ManageBGActions.GetPredictionPlot(the_userprofile,containers,start_time_dt,end_time_dt)
     return_plots[0].append(prediction_plot)
 
     # suspend (a plot for now)
-    suspends = ManageBGActions.GetSuspend(the_userprofile,containers,start_time_dt,end_time_dt)
+    suspends = ManageBGActions.GetSuspendPlot(the_userprofile,containers,start_time_dt,end_time_dt)
     for plot in suspends :
         return_plots[1].append(plot)
 

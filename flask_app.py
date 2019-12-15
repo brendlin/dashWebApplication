@@ -24,6 +24,8 @@ import plotly
 import ManagePlots
 import LoadNewFile
 import SettingsTableFunctions
+import ManageBGActions
+import Utils
 
 # BG Classes
 from BGModel import BGActionClasses
@@ -66,6 +68,12 @@ app.layout = html.Div(
         html.Div(id='active-profile'    ,style={'display': 'none'},children=None), # This will store the json text
         html.Div(id='profiles-from-data',style={'display': 'none'},children=None), # This will store the json text
         html.Div(id='custom-profiles'   ,style={'display': 'none'},children=None), # This will store the json text
+        html.Div(id='bwz-profile'       ,style={'display': 'none'},children=None), # This will store the json text
+
+        # Saved container profiles
+        html.Div(id='active-containers'      ,style={'display': 'none'},children=None),
+        html.Div(id='bwz-containers',style={'display': 'none'},children=None),
+        html.Div(id='custom-containers'      ,style={'display': 'none'},children=None),
 
         # Saved basal schedules (panda)
         html.Div(id='all-basal-schedules',style={'display':'none'},children=None), # This stores the historical basal schedules
@@ -116,13 +124,21 @@ app.layout = html.Div(
         SettingsTableFunctions.base_settings_table,
         SettingsTableFunctions.derived_settings_table,
 
+        html.Div(html.Div([dcc.Dropdown(id='containers-dropdown',placeholder='Daily events',style={'width':'250px','display': 'inline-block','verticalAlign':'middle'},searchable=False),
+                           ],
+                          style={'display':'table-cell','verticalAlign':'middle'},
+                          ),
+                 style={'height':'50px','display':'table','width':'100%'},
+                 ),
+
         dcc.Markdown(children='''\* Units: "BG" stands for mg/dL.
 
 \*\* The two numbers in each hour column represent "on the hour" (top) and "on the half-hour" (bottom).
 
 \*\*\* "True basal rate" represents what your basal insulin should be, based on your sensitivity and liver glucose settings.
-'''
-                      ),
+''',
+                     style={'display': 'none'},
+                     ),
 
         ] # html.Div Children
     ) # html.Div
@@ -133,6 +149,7 @@ app.layout = html.Div(
 @app.callback([Output('uploaded-input-data-status','children'),
                Output('all-basal-schedules', 'children'),
                Output('profiles-from-data', 'children'),
+               Output('bwz-profile','children'),
                Output('my-date-picker-single', 'min_date_allowed'),
                Output('my-date-picker-single', 'max_date_allowed'),
                Output('my-date-picker-single', 'initial_visible_month'),
@@ -152,8 +169,8 @@ def update_file(contents, name):
 #
 @app.callback([Output('uploaded-libre-status','children'),
                Output('upload-cgm-panda', 'children')],
-              [Input('upload-data', 'contents')],
-              [State('upload-data', 'filename')])
+              [Input('upload-libre', 'contents')],
+              [State('upload-libre', 'filename')])
 def update_file(contents, name):
 
     return LoadNewFile.LoadLibreFile(contents, name)
@@ -164,6 +181,7 @@ def update_file(contents, name):
 @app.callback(Output('display-tidepool-graph', 'figure'),
               [Input('upload-smbg-panda', 'children'),
                Input('active-profile', 'children'),
+               Input('active-containers','children'),
                Input('show-this-day','n_clicks_timestamp'),
                Input('overview-button','n_clicks_timestamp')],
               [State('my-date-picker-single', 'date'),
@@ -172,7 +190,7 @@ def update_file(contents, name):
                State('upload-cgm-panda','children'),
                State('upload-basal-panda','children'),
                ])
-def update_plot(pd_smbg_json,active_profile_json,show_this_day_t,show_overview_t,date,basals_json,pd_cont_json,pd_cgm_json,pd_basal_json):
+def update_plot(pd_smbg_json,active_profile_json,active_container_json,show_this_day_t,show_overview_t,date,basals_json,pd_cont_json,pd_cgm_json,pd_basal_json):
 
     #print('basals_json',basals_json)
     #print('active_profile_json',active_profile_json)
@@ -184,9 +202,7 @@ def update_plot(pd_smbg_json,active_profile_json,show_this_day_t,show_overview_t
 
     pd_smbg = pd.read_json(pd_smbg_json)
 
-    thisDayWasPressed = (show_this_day_t != None)
-    overviewNeverPressed = (show_overview_t == None)
-    doDayPlot = thisDayWasPressed and (overviewNeverPressed or (show_this_day_t > show_overview_t))
+    doDayPlot = Utils.ShowDayNotOverview(show_this_day_t,show_overview_t)
 
     # some more sanity guards:
     if (not pd_cont_json) :
@@ -201,19 +217,14 @@ def update_plot(pd_smbg_json,active_profile_json,show_this_day_t,show_overview_t
 
     # Get the right timing
     if doDayPlot :
-        try :
-            the_time = datetime.datetime.strptime(date,'%Y-%m-%dT%H:%M:%S')
-        except ValueError :
-            the_time = datetime.datetime.strptime(date,'%Y-%m-%d')
-        start_time = the_time.strftime('%Y-%m-%dT04:00:00')
-        end_time  = (the_time+datetime.timedelta(days=1)).strftime('%Y-%m-%dT10:00:00')
+        start_time_dt,end_time_dt = Utils.GetDayBeginningAndEnd_dt(date)
 
     else :
         start_time = pd_smbg['deviceTime'].iloc[-1]
         end_time   = pd_smbg['deviceTime'].iloc[0]
 
-    start_time_dt = datetime.datetime.strptime(start_time,'%Y-%m-%dT%H:%M:%S')
-    end_time_dt   = datetime.datetime.strptime(end_time  ,'%Y-%m-%dT%H:%M:%S')
+        start_time_dt = datetime.datetime.strptime(start_time,'%Y-%m-%dT%H:%M:%S')
+        end_time_dt   = datetime.datetime.strptime(end_time  ,'%Y-%m-%dT%H:%M:%S')
 
     fig.update_yaxes(title_text="BG (mg/dL)", row=1, col=1)
     fig.update_yaxes(title_text=u"\u0394"+" BG (mg/dL/hr)", row=2, col=1)
@@ -251,6 +262,52 @@ def update_plot(pd_smbg_json,active_profile_json,show_this_day_t,show_overview_t
     return fig
 
 #
+# Update the dropdown of available containers (when a day is selected)
+#
+@app.callback([Output('containers-dropdown', 'options'),
+               Output('containers-dropdown', 'value'),
+               Output('bwz-containers', 'children'),
+               ],
+              [Input('show-this-day','n_clicks_timestamp'),
+               Input('overview-button','n_clicks_timestamp')],
+              [State('my-date-picker-single', 'date'),
+               State('upload-smbg-panda', 'children'),
+               State('all-basal-schedules','children'),
+               State('upload-container-panda','children'),
+               State('upload-basal-panda','children'),
+               State('bwz-profile', 'children'), # make the containers (fatty) from the original bwz
+               State('containers-dropdown', 'options'),
+               State('containers-dropdown', 'value'),
+               ])
+def make_day_containers(show_this_day_t,show_overview_t,date,pd_smbg_json,basals_json,pd_cont_json,pd_basal_json,bwz_profile_json,options,value):
+
+    loadDayContainers = Utils.ShowDayNotOverview(show_this_day_t,show_overview_t)
+
+    if not loadDayContainers :
+        return [], None, ''
+
+    pd_smbg = pd.read_json(pd_smbg_json)
+    pd_cont = pd.read_json(pd_cont_json)
+    basals = Settings.UserSetting.fromJson(basals_json)
+    active_profile = Settings.TrueUserProfile.fromJson(bwz_profile_json.split('$$$')[1])
+    pd_basal = pd.read_json(pd_basal_json)
+
+    start_time_dt,end_time_dt = Utils.GetDayBeginningAndEnd_dt(date)
+
+    bwz_conts = ManageBGActions.GetContainers(pd_smbg,pd_cont,basals,active_profile,start_time_dt,end_time_dt,pd_basal)
+
+    the_time = start_time_dt.strftime('%Y-%m-%d')
+    the_name = 'BWZ Inputs %s'%(the_time)
+    bwz_conts_json = '$$$'.join([the_name]+list(Utils.containerToJson(c) for c in bwz_conts))
+
+    if the_name not in list(o['label'] for o in options) :
+        options.append({'label':the_name,'value':bwz_conts_json})
+    if not value or the_time not in value :
+        value = options[-1]['value']
+
+    return options, value, bwz_conts_json
+
+#
 # Update the list of available menus
 #
 @app.callback([Output('profiles-dropdown', 'options'),
@@ -268,6 +325,8 @@ def update_dropdown(profiles_from_data_json,custom_profiles_json,previous_value)
         for each_profile in profiles_from_data_json.split('###') :
             key,value = each_profile.split('$$$')
             key_short = 'profile from %s'%(datetime.datetime.strptime(key,'%Y-%m-%dT%H:%M:%S').strftime('%Y-%m-%d'))
+            if '1970' in key :
+                key_short = 'A generic user profile'
             options.append({'label':key_short,'value':value})
 
         if not new_value :
@@ -320,6 +379,11 @@ def update_derived_table(table,ta):
         raise PreventUpdate
 
     return SettingsTableFunctions.UpdateDerivedTable(table,ta)
+
+
+#
+# Update the active containers from the table
+#
 
 
 #

@@ -2,6 +2,32 @@ from BGModel import Settings
 import datetime
 import sys
 
+def getGenericUserProfile() :
+
+    sensitivity = Settings.UserSetting('Sensitivity')
+    ric = Settings.UserSetting('RIC')
+    duration = Settings.UserSetting('Duration')
+    basal = Settings.UserSetting('Basal')
+
+    the_time = '1970-01-01T00:00:01'
+
+    for s in [sensitivity,ric,duration,basal] :
+        s.getOrMakeSettingsSnapshot(the_time)
+
+    sensitivity.AddSettingToSnapshot(the_time,0,60)
+    ric.AddSettingToSnapshot(the_time,0,15)
+    duration.AddSettingToSnapshot(the_time,0,3)
+    basal.AddSettingToSnapshot(the_time,0,1.0)
+
+    the_userprofile = Settings.TrueUserProfile()
+    the_userprofile.AddSensitivityFromArrays(sensitivity.latestSettingsSnapshot(),
+                                             ric.latestSettingsSnapshot())
+    the_userprofile.AddHourlyGlucoseFromArrays(basal.latestSettingsSnapshot(),
+                                               duration.latestSettingsSnapshot())
+    the_userprofile.AddDurationFromArray(duration.latestSettingsSnapshot())
+
+    return the_userprofile
+
 def LoadFromJsonData(data) :
     # give this function the full data frame.
 
