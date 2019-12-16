@@ -306,7 +306,7 @@ def make_day_containers(show_this_day_t,show_overview_t,date,pd_smbg_json,basals
 
     the_time = start_time_dt.strftime('%Y-%m-%d')
     the_name = 'BWZ Inputs %s'%(the_time)
-    bwz_conts_json = '$$$'.join([the_name]+list(Utils.containerToJson(c) for c in bwz_conts))
+    bwz_conts_json = '$$$'.join([the_name]+list(ContainersTableFunctions.containerToJson(c) for c in bwz_conts))
 
     if the_name not in list(o['label'] for o in options) :
         options.append({'label':the_name,'value':bwz_conts_json})
@@ -412,18 +412,33 @@ def update_active_profile(table,ta,tf):
 # Add row to container table
 #
 @app.callback(Output('container-table', 'data'),
-              [Input('add-rows-button', 'n_clicks')],
+              [Input('add-rows-button', 'n_clicks'),
+               Input('containers-dropdown','value'),
+               ],
               [State('container-table', 'data'),
                State('container-table', 'columns'),
+               State('my-date-picker-single', 'date'),
                ])
-def add_row(n_clicks, rows, columns):
-    print('rows 0',rows,type(rows))
-    if n_clicks > 0:
+def add_row(n_clicks, containers_selected_from_dropdown, rows, columns, date):
+
+    if not dash.callback_context.triggered:
+        raise PreventUpdate
+
+    # If the user requested a new row:
+    if (n_clicks > 0) and ('n_clicks' in dash.callback_context.triggered[0]['prop_id']) :
         next = {c['id']: '' for c in columns}
-        next['Class'] = 'Add an event'
+        next['class'] = 'Add an event'
         next['IsBWZ'] = 0
+        if 'YYYY' in rows[-1]['iov_0_str'] :
+            next['iov_0_str'] = rows[-1]['iov_0_str']
+        else :
+            next['iov_0_str'] = date.split(' ')[0].split('T')[0]+' 00:00'
+        next['hr'] = 'hr'
         rows.append(next)
-    return rows
+        return rows
+
+    # Otherwise, it was a new dropdown:
+    return ContainersTableFunctions.UpdateContainerTable(containers_selected_from_dropdown)
 
 #
 # Update units table to reflect container table
@@ -434,13 +449,17 @@ def add_row(n_clicks, rows, columns):
 def update_units(rows) :
     units = []
     for row in rows :
-        if row['Class'] == 'Food' :
+        if row['class'] == 'Food' :
             units.append({'unit':'g'})
-        elif row['Class'] == 'LiverFattyGlucose' :
+        elif row['class'] == 'LiverFattyGlucose' :
             units.append({'unit':'%'})
-        elif row['Class'] == 'ExerciseEffect' :
+        elif row['class'] == 'ExerciseEffect' :
             units.append({'unit':u'\u26f9'})
             #units.append({'unit':('\u26f9')*round(float(row['magnitude']))})
+        elif row['class'] == 'InsulinBolus' :
+            units.append({'unit':'u'})
+        elif row['class'] == 'BGMeasurement' :
+            units.append({'unit':'mg/dL'})
         else :
             units.append({'unit':''})
 
