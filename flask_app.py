@@ -24,6 +24,7 @@ import plotly
 import ManagePlots
 import LoadNewFile
 import SettingsTableFunctions
+import ContainersTableFunctions
 import ManageBGActions
 import Utils
 
@@ -130,6 +131,13 @@ app.layout = html.Div(
                           ),
                  style={'height':'50px','display':'table','width':'100%'},
                  ),
+
+        html.Div(children=[html.Div(ContainersTableFunctions.container_table,style={'display':'table-cell'}),
+                           html.Div(ContainersTableFunctions.container_table_units,style={'display':'table-cell'}),
+                           ],
+                 style={'width':'200px','display':'table'},
+                 ),
+        html.Button('Add row', id='add-rows-button', n_clicks=0),
 
         dcc.Markdown(children='''\* Units: "BG" stands for mg/dL.
 
@@ -400,6 +408,43 @@ def update_active_profile(table,ta,tf):
 
     return SettingsTableFunctions.ConvertBaseTableToProfile(table,ta,tf)
 
+#
+# Add row to container table
+#
+@app.callback(Output('container-table', 'data'),
+              [Input('add-rows-button', 'n_clicks')],
+              [State('container-table', 'data'),
+               State('container-table', 'columns'),
+               ])
+def add_row(n_clicks, rows, columns):
+    print('rows 0',rows,type(rows))
+    if n_clicks > 0:
+        next = {c['id']: '' for c in columns}
+        next['Class'] = 'Add an event'
+        next['IsBWZ'] = 0
+        rows.append(next)
+    return rows
+
+#
+# Update units table to reflect container table
+#
+@app.callback(Output('container-table-units', 'data'),
+              [Input('container-table','data')],
+              )
+def update_units(rows) :
+    units = []
+    for row in rows :
+        if row['Class'] == 'Food' :
+            units.append({'unit':'g'})
+        elif row['Class'] == 'LiverFattyGlucose' :
+            units.append({'unit':'%'})
+        elif row['Class'] == 'ExerciseEffect' :
+            units.append({'unit':u'\u26f9'})
+            #units.append({'unit':('\u26f9')*round(float(row['magnitude']))})
+        else :
+            units.append({'unit':''})
+
+    return units
 
 app.title = 'Kurt Webpage'
 
