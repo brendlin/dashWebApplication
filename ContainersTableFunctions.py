@@ -29,7 +29,7 @@ style_colors = [{'if': {'filter_query':'{class} eq "BasalInsulin"'},'color':'Blu
                 {'if': {'filter_query':'{class} eq "Food"'},'color':'Red'},
                 ]
 
-container_table = DataTable(id='container-table',
+container_table = DataTable(id='container-table-editable',
                             columns=[{'name':i[1], 'id':i[0], 'presentation':('dropdown' if i[0] == 'class' else 'input'),'deletable': False,} for i in columns],
                             data=[],
                             editable=True,
@@ -53,7 +53,31 @@ container_table = DataTable(id='container-table',
                                                   ],
                             )
 
-container_table_units = DataTable(id='container-table-units',
+container_table_fixed = DataTable(id='container-table-fixed',
+                                  columns=[{'name':i[1], 'id':i[0], 'presentation':('dropdown' if i[0] == 'class' else 'input'),'deletable': False,} for i in columns],
+                                  data=[],
+                                  editable=False,
+                                  # row_deletable=True,
+                                  # hide IsBWZ, which you need to see if it should be editable
+                                  style_cell={'height': height},
+                                  style_cell_conditional=[{'if': {'column_id': 'IsBWZ'},'display': 'none'},
+                                                          {'if': {'column_id': 'class'},'textAlign': 'left'},
+                                                          {'if': {'column_id': 'iov_0_str'},'textAlign': 'left'},
+                                                          {'if': {'column_id': 'magnitude' },'border_right':'0px'},
+                                                          {'if': {'column_id': 'hr' },'border_left':'0px'},
+                                                          ],
+                                  style_data_conditional=[{'if': {'column_id': 'iov_0_str','filter_query': '{class} eq "BasalInsulin"'},'textAlign':'center'},
+                                                          {'if': {'column_id': 'iov_0_str','filter_query': '{class} eq "LiverBasalGlucose"'},'textAlign':'center'},
+                                                          ] + style_colors,
+                                  dropdown_conditional=[{'if': {'column_id': 'class',
+                                                          'filter_query': '{IsBWZ} eq "0"'},
+                                                         'options': list({'label': i, 'value': i} for i in container_opts),
+                                                         'clearable':False,
+                                                         },
+                                                        ],
+                                  )
+
+container_table_units = DataTable(id='container-table-editable-units',
                                   columns=[{'name':'class','id':'class'},{'name':'', 'id':'unit'}],
                                   data=[],
                                   style_cell={'height': height,'border_left':'0px','textAlign':'left'},
@@ -61,26 +85,40 @@ container_table_units = DataTable(id='container-table-units',
                                   style_data_conditional=style_colors,
                                   )
 
+container_table_fixed_units = DataTable(id='container-table-fixed-units',
+                                        columns=[{'name':'class','id':'class'},{'name':'', 'id':'unit'}],
+                                        data=[],
+                                        style_cell={'height': height,'border_left':'0px','textAlign':'left'},
+                                        style_cell_conditional=[{'if': {'column_id': 'class'},'display': 'none'},],
+                                        style_data_conditional=style_colors,
+                                        )
+
 #------------------------------------------------------------------
 def UpdateContainerTable(the_containers_json) :
 
-    out_table = []
+    out_table_editable = []
+    out_table_fixed = []
 
     add_an_event = {'iov_0_str':'YYYY-MM-DD HH:MM','iov_1_utc':'','IsBWZ':'0','class':'Add an event','magnitude':'','duration_hr':'','hr':'hr'}
 
     if not the_containers_json :
-        out_table.append(add_an_event)
-        return out_table
+        out_table_editable.append(add_an_event)
+        return out_table_editable, out_table_fixed
 
     containers = the_containers_json.split('$$$')[1:]
     the_date = the_containers_json.split('$$$')[0]
 
+    fixed_conts = ['BasalInsulin','LiverBasalGlucose','BGMeasurement','InsulinBolus','TempBasal','Suspend']
+
     for c in list(json.loads(c) for c in containers) :
-        out_table.append(c)
+        if c['class'] in fixed_conts :
+            out_table_fixed.append(c)
+        else :
+            out_table_editable.append(c)
 
     add_an_event['iov_0_str'] = the_date.replace('BWZ Inputs','')+' 00:00'
-    out_table.append(add_an_event)
-    return out_table
+    out_table_editable.append(add_an_event)
+    return out_table_editable, out_table_fixed
 
 #------------------------------------------------------------------
 def containerToJson(c) :
@@ -135,3 +173,25 @@ def containerToJson(c) :
             ret['magnitude'] = '%.1f+%.1f'%(c.insulin_inst,c.insulin_square)
 
     return json.dumps(ret)
+
+#------------------------------------------------------------------
+def UpdateUnits(rows) :
+    units = []
+    for row in rows :
+        if row['class'] == 'Food' :
+            units.append({'unit':'g'})
+        elif row['class'] in ['LiverFattyGlucose','TempBasal'] :
+            units.append({'unit':'%'})
+        elif row['class'] == 'ExerciseEffect' :
+            units.append({'unit':u'\u26f9'})
+            #units.append({'unit':('\u26f9')*round(float(row['magnitude']))})
+        elif row['class'] == 'InsulinBolus' :
+            units.append({'unit':'u'})
+        elif row['class'] == 'BGMeasurement' :
+            units.append({'unit':'mg/dL'})
+        else :
+            units.append({'unit':''})
+
+        units[-1]['class'] = row['class']
+
+    return units

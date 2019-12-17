@@ -115,6 +115,8 @@ app.layout = html.Div(
                             html.Div(ContainersTableFunctions.container_table,style={'display':'table-cell'}),
                             html.Div(ContainersTableFunctions.container_table_units,style={'display':'table-cell'}),
                             html.Button('Add row', id='add-rows-button', n_clicks=0),
+                            html.Div(ContainersTableFunctions.container_table_fixed,style={'display':'table-cell'}),
+                            html.Div(ContainersTableFunctions.container_table_fixed_units,style={'display':'table-cell'}),
                             ],
                            className='five columns',
                            style={'height':'400px','maxHeight': '400px', 'overflow': 'scroll'},
@@ -306,13 +308,18 @@ def make_day_containers(show_this_day_t,show_overview_t,date,pd_smbg_json,basals
     bwz_conts = ManageBGActions.GetContainers(pd_smbg,pd_cont,basals,active_profile,start_time_dt,end_time_dt,pd_basal)
 
     the_time = start_time_dt.strftime('%Y-%m-%d')
-    the_name = 'BWZ Inputs %s'%(the_time)
-    bwz_conts_json = '$$$'.join([the_name]+list(ContainersTableFunctions.containerToJson(c) for c in bwz_conts))
+    the_name = '%s BWZ Inputs'%(the_time)
+    the_name_time_tagged = '@%s BWZ Inputs'%(the_time)
+    bwz_conts_json = '$$$'.join([the_name_time_tagged]+list(ContainersTableFunctions.containerToJson(c) for c in bwz_conts))
 
     if the_name not in list(o['label'] for o in options) :
         options.append({'label':the_name,'value':bwz_conts_json})
-    if not value or the_time not in value :
-        value = options[-1]['value']
+
+    if not value or ('@%s'%the_time) not in value :
+        value = bwz_conts_json
+
+    for opt in options :
+        opt['disabled'] = (('@%s'%the_time) not in opt['value'])
 
     return options, value, bwz_conts_json
 
@@ -412,31 +419,35 @@ def update_active_profile(table,ta,tf):
 #
 # Add row to container table
 #
-@app.callback(Output('container-table', 'data'),
+@app.callback([Output('container-table-editable', 'data'),
+               Output('container-table-fixed', 'data'),
+               ],
               [Input('add-rows-button', 'n_clicks'),
                Input('containers-dropdown','value'),
                ],
-              [State('container-table', 'data'),
-               State('container-table', 'columns'),
+              [State('container-table-editable', 'data'),
+               State('container-table-editable', 'columns'),
+               State('container-table-fixed', 'data'),
+               State('container-table-fixed', 'columns'),
                State('my-date-picker-single', 'date'),
                ])
-def add_row(n_clicks, containers_selected_from_dropdown, rows, columns, date):
+def add_row(n_clicks, containers_selected_from_dropdown, rows_ed, columns_ed, rows_fix, columns_fix, date):
 
     if not dash.callback_context.triggered:
         raise PreventUpdate
 
     # If the user requested a new row:
     if (n_clicks > 0) and ('n_clicks' in dash.callback_context.triggered[0]['prop_id']) :
-        next = {c['id']: '' for c in columns}
+        next = {c['id']: '' for c in columns_fix}
         next['class'] = 'Add an event'
         next['IsBWZ'] = 0
-        if 'YYYY' in rows[-1]['iov_0_str'] :
-            next['iov_0_str'] = rows[-1]['iov_0_str']
+        if 'YYYY' in rows_ed[-1]['iov_0_str'] :
+            next['iov_0_str'] = rows_ed[-1]['iov_0_str']
         else :
             next['iov_0_str'] = date.split(' ')[0].split('T')[0]+' 00:00'
         next['hr'] = 'hr'
-        rows.append(next)
-        return rows
+        rows_ed.append(next)
+        return rows_ed, rows_fix
 
     # Otherwise, it was a new dropdown:
     return ContainersTableFunctions.UpdateContainerTable(containers_selected_from_dropdown)
@@ -444,29 +455,17 @@ def add_row(n_clicks, containers_selected_from_dropdown, rows, columns, date):
 #
 # Update units table to reflect container table
 #
-@app.callback(Output('container-table-units', 'data'),
-              [Input('container-table','data')],
+@app.callback(Output('container-table-editable-units', 'data'),
+              [Input('container-table-editable','data')],
               )
-def update_units(rows) :
-    units = []
-    for row in rows :
-        if row['class'] == 'Food' :
-            units.append({'unit':'g'})
-        elif row['class'] in ['LiverFattyGlucose','TempBasal'] :
-            units.append({'unit':'%'})
-        elif row['class'] == 'ExerciseEffect' :
-            units.append({'unit':u'\u26f9'})
-            #units.append({'unit':('\u26f9')*round(float(row['magnitude']))})
-        elif row['class'] == 'InsulinBolus' :
-            units.append({'unit':'u'})
-        elif row['class'] == 'BGMeasurement' :
-            units.append({'unit':'mg/dL'})
-        else :
-            units.append({'unit':''})
+def update_units_editable(rows) :
+    return ContainersTableFunctions.UpdateUnits(rows)
 
-        units[-1]['class'] = row['class']
-
-    return units
+@app.callback(Output('container-table-fixed-units', 'data'),
+              [Input('container-table-fixed','data')],
+              )
+def update_units_fixed(rows) :
+    return ContainersTableFunctions.UpdateUnits(rows)
 
 app.title = 'Kurt Webpage'
 
