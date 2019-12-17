@@ -451,7 +451,7 @@ def update_units(rows) :
     for row in rows :
         if row['class'] == 'Food' :
             units.append({'unit':'g'})
-        elif row['class'] == 'LiverFattyGlucose' :
+        elif row['class'] in ['LiverFattyGlucose','TempBasal'] :
             units.append({'unit':'%'})
         elif row['class'] == 'ExerciseEffect' :
             units.append({'unit':u'\u26f9'})
@@ -462,6 +462,8 @@ def update_units(rows) :
             units.append({'unit':'mg/dL'})
         else :
             units.append({'unit':''})
+
+        units[-1]['class'] = row['class']
 
     return units
 

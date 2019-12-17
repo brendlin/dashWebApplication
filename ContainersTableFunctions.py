@@ -17,6 +17,16 @@ container_opts = ['Add an event','Food','LiverFattyGlucose','ExerciseEffect']
 # Food: start time, ta, Magnitude, unit
 # fatty glucose: start time (according to temp basal), duration (according to temp basal), (magnitude) percent (according to temp basal) unit (percent)
 
+style_colors = [{'if': {'filter_query':'{class} eq "BasalInsulin"'},'color':'Blue'},
+                {'if': {'filter_query':'{class} eq "LiverFattyGlucose"'},'color':'Orange'},
+                {'if': {'filter_query':'{class} eq "BGMeasurement"'},'color':'Gray'},
+                {'if': {'filter_query':'{class} eq "TempBasal"'},'color':'Gray'},
+                {'if': {'filter_query':'{class} eq "Suspend"'},'color':'Gray'},
+                {'if': {'filter_query':'{class} eq "LiverBasalGlucose"'},'color':'Yellow'},
+                {'if': {'filter_query':'{class} eq "InsulinBolus"'},'color':'Green'},
+                {'if': {'filter_query':'{class} eq "Food"'},'color':'Red'},
+                ]
+
 container_table = DataTable(id='container-table',
                             columns=[{'name':i[1], 'id':i[0], 'presentation':('dropdown' if i[0] == 'class' else 'input'),'deletable': False,} for i in columns],
                             data=[],
@@ -30,6 +40,9 @@ container_table = DataTable(id='container-table',
                                                     {'if': {'column_id': 'magnitude' },'border_right':'0px'},
                                                     {'if': {'column_id': 'hr' },'border_left':'0px'},
                                                     ],
+                            style_data_conditional=[{'if': {'column_id': 'iov_0_str','filter_query': '{class} eq "BasalInsulin"'},'textAlign':'center'},
+                                                    {'if': {'column_id': 'iov_0_str','filter_query': '{class} eq "LiverBasalGlucose"'},'textAlign':'center'},
+                                                    ] + style_colors,
                             dropdown_conditional=[{'if': {'column_id': 'class',
                                                           'filter_query': '{IsBWZ} eq "0"'},
                                                    'options': list({'label': i, 'value': i} for i in container_opts),
@@ -39,9 +52,11 @@ container_table = DataTable(id='container-table',
                             )
 
 container_table_units = DataTable(id='container-table-units',
-                                  columns=[{'name':'', 'id':'unit'}],
+                                  columns=[{'name':'class','id':'class'},{'name':'', 'id':'unit'}],
                                   data=[],
                                   style_cell={'height': '35px','border_left':'0px','textAlign':'left'},
+                                  style_cell_conditional=[{'if': {'column_id': 'class'},'display': 'none'},],
+                                  style_data_conditional=style_colors,
                                   )
 
 #------------------------------------------------------------------
@@ -87,20 +102,25 @@ def containerToJson(c) :
             ret['hr'] = 'hr'
 
     if hasattr(c,'Ta_tempBasal') :
-        ret['duration_hr'] = c.Ta_tempBasal
+        ret['duration_hr'] = round(c.Ta_tempBasal,1)
         ret['hr'] = 'hr'
 
-    for i in ['insulin','food','const_BG'] :
+    for i in ['food','const_BG'] :
         if hasattr(c,i) :
             ret[i] = getattr(c,i)
             ret['magnitude'] = getattr(c,i)
 
-    for i in ['factor','fractionOfBasal'] :
+    for i in ['insulin'] :
+        if hasattr(c,i) :
+            ret[i] = round(getattr(c,i),1)
+            ret['magnitude'] = ret[i]
+
+    for i in ['factor','fractionOfBasal','basalFactor'] :
         if hasattr(c,i) :
             ret[i] = round(getattr(c,i),2)*100
             ret['magnitude'] = ret[i]
 
-    for i in ['duration_hr','BasalRates','basalFactor','annotation','Ta_tempBasal'] :
+    for i in ['duration_hr','BasalRates','annotation','Ta_tempBasal'] :
         if hasattr(c,i) :
             ret[i] = getattr(c,i)
             if i == 'duration_hr' :
