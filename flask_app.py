@@ -93,21 +93,34 @@ app.layout = html.Div(
                                                 initial_visible_month=datetime.datetime(2017, 8, 5),
                                                 date=str(datetime.datetime(2017, 8, 25, 23, 59, 59))
                                                 ),
-                           html.Button('Show this day', id='show-this-day'),
+                           html.Button('Show this day', id='show-this-day',className='button-primary'),
                            html.Button('Back to overview', id='overview-button'),
                            ]
                  ),
 
 
-        html.Div(children = [
-                #html.Hr(),  # horizontal line
-                dcc.Graph(id='display-tidepool-graph',
-                          #config={'staticPlot':True,},
-                          figure={},
-                          style={'height': 400,}
-                          ), # Graph
-                #html.Hr(),  # horizontal line
-                ]
+        html.Div([html.Div([dcc.Graph(id='display-tidepool-graph',
+                                      #config={'staticPlot':True,},
+                                      figure={},
+                                      style={'height': 400,}
+                                      ),
+                            ],
+                           className='seven columns',
+                           ),
+                  html.Div([html.Div(html.Div([dcc.Dropdown(id='containers-dropdown',placeholder='Daily events',style={'width':'250px','display': 'inline-block','verticalAlign':'middle'},searchable=False),],
+                                              style={'display':'table-cell','verticalAlign':'middle'},
+                                              ),
+                                     style={'height':'50px','display':'table','width':'100%'},
+                                     ),
+                            html.Div(ContainersTableFunctions.container_table,style={'display':'table-cell'}),
+                            html.Div(ContainersTableFunctions.container_table_units,style={'display':'table-cell'}),
+                            html.Button('Add row', id='add-rows-button', n_clicks=0),
+                            ],
+                           className='five columns',
+                           style={'height':'400px','maxHeight': '400px', 'overflow': 'scroll'},
+                           ),
+                  ],
+                 className='row',
                  ),
 
         html.Div(html.Div([dcc.Dropdown(id='profiles-dropdown',placeholder='Your profiles',style={'width':'250px','display': 'inline-block','verticalAlign':'middle'},searchable=False),
@@ -125,19 +138,6 @@ app.layout = html.Div(
         SettingsTableFunctions.base_settings_table,
         SettingsTableFunctions.derived_settings_table,
 
-        html.Div(html.Div([dcc.Dropdown(id='containers-dropdown',placeholder='Daily events',style={'width':'250px','display': 'inline-block','verticalAlign':'middle'},searchable=False),
-                           ],
-                          style={'display':'table-cell','verticalAlign':'middle'},
-                          ),
-                 style={'height':'50px','display':'table','width':'100%'},
-                 ),
-
-        html.Div(children=[html.Div(ContainersTableFunctions.container_table,style={'display':'table-cell'}),
-                           html.Div(ContainersTableFunctions.container_table_units,style={'display':'table-cell'}),
-                           ],
-                 style={'width':'200px','display':'table'},
-                 ),
-        html.Button('Add row', id='add-rows-button', n_clicks=0),
 
         dcc.Markdown(children='''\* Units: "BG" stands for mg/dL.
 
@@ -238,6 +238,7 @@ def update_plot(pd_smbg_json,active_profile_json,active_container_json,show_this
     fig.update_yaxes(title_text=u"\u0394"+" BG (mg/dL/hr)", row=2, col=1)
     fig.update_xaxes(range=[start_time_dt, end_time_dt])
     fig.update_layout(margin=dict(l=20, r=20, t=20, b=20),paper_bgcolor="LightSteelBlue",)
+    fig.update_layout(showlegend=False)
 
     # Add the cgm
     if pd_cgm_json and doDayPlot :

@@ -66,6 +66,8 @@ def GetSettingsIndependentContainers(pd_smbg,pd_cont,start_time_dt64,end_time_dt
     foods = pd_cont[(pd_cont['type'] == 'wizard') & (pd.to_datetime(pd_cont['deviceTime']) > st_relevantEvents) & (pd.to_datetime(pd_cont['deviceTime']) < end_time_dt64)]
     for i in range(len(foods)) :
         entry = foods.iloc[i]
+        if int(entry['carbInput']) == 0 :
+            continue
 
         # food = Food.FromStringDate('2019-02-24T12:00:00',30)
         c = Food.FromStringDate(entry['deviceTime'],entry['carbInput'])
