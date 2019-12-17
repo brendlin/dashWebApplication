@@ -6,18 +6,20 @@ import datetime
 columns = [['IsBWZ','IsBWZ'],
            ['class','Event type'],
            ['iov_0_str','Start time'],
-           ['duration_hr','Duration'],
+           ['duration_hr','Dur.'],
            ['hr',''],
            ['magnitude','Value'],
            ]
 
 container_opts = ['Add an event','Food','LiverFattyGlucose','ExerciseEffect']
+height='35px'
 
 # Exercise: start time, duration, Magnitude, unit
 # Food: start time, ta, Magnitude, unit
 # fatty glucose: start time (according to temp basal), duration (according to temp basal), (magnitude) percent (according to temp basal) unit (percent)
 
 style_colors = [{'if': {'filter_query':'{class} eq "BasalInsulin"'},'color':'Blue'},
+                {'if': {'filter_query':'{class} eq "ExerciseEffect"'},'color':'#00c1ff'},
                 {'if': {'filter_query':'{class} eq "LiverFattyGlucose"'},'color':'Orange'},
                 {'if': {'filter_query':'{class} eq "BGMeasurement"'},'color':'Gray'},
                 {'if': {'filter_query':'{class} eq "TempBasal"'},'color':'Gray'},
@@ -31,9 +33,9 @@ container_table = DataTable(id='container-table',
                             columns=[{'name':i[1], 'id':i[0], 'presentation':('dropdown' if i[0] == 'class' else 'input'),'deletable': False,} for i in columns],
                             data=[],
                             editable=True,
-                            row_deletable=True,
+                            # row_deletable=True,
                             # hide IsBWZ, which you need to see if it should be editable
-                            style_cell={'height': '35px'},
+                            style_cell={'height': height},
                             style_cell_conditional=[{'if': {'column_id': 'IsBWZ'},'display': 'none'},
                                                     {'if': {'column_id': 'class'},'textAlign': 'left'},
                                                     {'if': {'column_id': 'iov_0_str'},'textAlign': 'left'},
@@ -54,7 +56,7 @@ container_table = DataTable(id='container-table',
 container_table_units = DataTable(id='container-table-units',
                                   columns=[{'name':'class','id':'class'},{'name':'', 'id':'unit'}],
                                   data=[],
-                                  style_cell={'height': '35px','border_left':'0px','textAlign':'left'},
+                                  style_cell={'height': height,'border_left':'0px','textAlign':'left'},
                                   style_cell_conditional=[{'if': {'column_id': 'class'},'display': 'none'},],
                                   style_data_conditional=style_colors,
                                   )
