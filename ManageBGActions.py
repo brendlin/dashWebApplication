@@ -4,93 +4,16 @@ import datetime
 import time
 import pandas as pd
 
-def GetSettingsIndependentContainers(pd_smbg,pd_cont,start_time_dt64,end_time_dt64) :
-
-    tag = '%s - %s'%(start_time_dt64.strftime('%Y-%m-%dT%H:%M:%S'),
-                     end_time_dt64.strftime('%Y-%m-%dT%H:%M:%S'))
-
-#     if tag in globals['containers'].keys() :
-#         return globals['containers'][tag]
-
-    containers = []
-
-    st_relevantEvents = start_time_dt64 - datetime.timedelta(hours=12)
-    st_oneDayBefore = start_time_dt64 - datetime.timedelta(hours=24)
-
-    # measurement
-    bgs = pd_smbg[(pd.to_datetime(pd_smbg['deviceTime']) > st_oneDayBefore) & (pd.to_datetime(pd_smbg['deviceTime']) < end_time_dt64)]
-    for i in range(len(bgs)) :
-
-        entry = bgs.iloc[i]
-        iov_1 = end_time_dt64.strftime('%Y-%m-%dT%H:%M:%S') if (i==0) else bgs.iloc[i+1]['deviceTime']
-        value = int(round(entry['value']*18.01559))
-
-        # add BG measurement
-        # measurement = BGMeasurement.FromStringDate('2019-02-24T12:00:00','2019-02-24T12:45:00',172)
-        c = BGMeasurement.FromStringDate(entry['deviceTime'],iov_1,value)
-        # print(time.ctime(c.iov_0_utc),time.ctime(c.iov_1_utc))
-
-        containers.append(c)
-
-        # This will exit after the first measurement before our time of interest
-        if pd.to_datetime(bgs.iloc[i]['deviceTime']) < start_time_dt64 :
-            break
-
-    # insulin
-    insulins = pd_cont[(pd_cont['type'] == 'bolus') & (pd.to_datetime(pd_cont['deviceTime']) > st_relevantEvents) & (pd.to_datetime(pd_cont['deviceTime']) < end_time_dt64)]
-    for i in range(len(insulins)) :
-
-        entry = insulins.iloc[i]
-        subType = entry['subType']
-
-        if subType == 'normal' :
-            # insulin = InsulinBolus.FromStringDate('2019-02-24T09:00:00',2.0)
-            c = InsulinBolus.FromStringDate(entry['deviceTime'],entry['normal'])
-
-        elif subType == 'square' :
-            # swb = SquareWaveBolus.FromStringDate('2019-02-24T12:00:00',3,2.0) # hours first
-            duration_hr = datetime.timedelta(milliseconds=entry['duration']).total_seconds()/3600.
-            c = InsulinBolus.FromStringDate(entry['deviceTime'],duration_hr,entry['normal'])
-
-        elif subType == 'dual/square' :
-            # dual wave bolus: hr, extended, normal
-            duration_hr = datetime.timedelta(milliseconds=entry['duration']).total_seconds()/3600.
-            c = DualWaveBolus.FromStringDate(entry['deviceTime'],duration_hr,entry['extended'],entry['normal'])
-
-        else :
-            print("Error - this is a bolus, but I do not know the subType.")
-            continue
-
-        containers.append(c)
-
-    foods = pd_cont[(pd_cont['type'] == 'wizard') & (pd.to_datetime(pd_cont['deviceTime']) > st_relevantEvents) & (pd.to_datetime(pd_cont['deviceTime']) < end_time_dt64)]
-    for i in range(len(foods)) :
-        entry = foods.iloc[i]
-        if int(entry['carbInput']) == 0 :
-            continue
-
-        # food = Food.FromStringDate('2019-02-24T12:00:00',30)
-        c = Food.FromStringDate(entry['deviceTime'],entry['carbInput'])
-
-        containers.append(c)
-
-    # print('tag:',tag)
-    # globals['containers'][tag] = containers
-
-    # for c in containers :
-    #     print(time.ctime(c.iov_0_utc),c.__class__)
-
-    return containers
-
 #------------------------------------------------------------------
 def GetBasals(basals,the_userprofile,start_time_dt64,end_time_dt64,input_containers) :
 
     containers = []
 
     st_oneDayBefore = start_time_dt64 - datetime.timedelta(hours=24)
+    et_fourHoursAfter = end_time_dt64 + datetime.timedelta(hours=4)
 
     basal_atTheTime = basals.getValidSnapshotAtTime(start_time_dt64.strftime('%Y-%m-%dT%H:%M:%S'))
-    basal = BasalInsulin(st_oneDayBefore.timestamp(),end_time_dt64.timestamp(),
+    basal = BasalInsulin(st_oneDayBefore.timestamp(),et_fourHoursAfter.timestamp(),
                          basal_atTheTime, # np.array
                          the_userprofile.InsulinSensitivity, # list of size 48
                          input_containers)
@@ -103,51 +26,6 @@ def GetBasals(basals,the_userprofile,start_time_dt64,end_time_dt64,input_contain
     containers.append(liver_glucose)
 
     return containers
-
-#------------------------------------------------------------------
-def GetBasalSpecialContainers(pd_basal,start_time_dt64,end_time_dt64) :
-
-    containers = []
-
-    st_relevantEvents = start_time_dt64 - datetime.timedelta(hours=12)
-    basals = pd_basal[(pd.to_datetime(pd_basal['deviceTime']) > st_relevantEvents) & (pd.to_datetime(pd_basal['deviceTime']) < end_time_dt64)]
-
-    for i in range(len(basals)) :
-        entry = basals.iloc[i]
-
-        # suspend
-        if entry['percent_fixed'] == 0 :
-            c = Suspend.FromStringDate(entry['deviceTime'],entry['deviceTime_end_fixed'])
-
-        else :
-            c = TempBasal.FromStringDate(entry['deviceTime'],entry['deviceTime_end_fixed'],entry['percent_fixed'])
-
-        containers.append(c)
-
-    # Merge adjacent temp basals (this is an artifact of how they are saved)
-    def MergeTempBasals(conts) :
-        for i in range(len(conts)-1) :
-            c1 = conts[i]
-            c2 = conts[i+1]
-            if (not c1.IsTempBasal()) or (not c2.IsTempBasal()) :
-                continue
-            if c1.basalFactor != c2.basalFactor :
-                continue
-
-            if c2.iov_1_utc == c1.iov_0_utc :
-                cmerged = TempBasal(c2.iov_0_utc,c1.iov_1_utc,c1.basalFactor)
-                conts.pop(i)
-                conts.pop(i)
-                conts.insert(i,cmerged)
-                return True
-        return False
-
-    try_merge = True
-    while try_merge :
-        try_merge = MergeTempBasals(containers)
-
-    return containers
-
 
 #------------------------------------------------------------------
 def GetSuspendPlot(the_userprofile,containers,start_time_dt,end_time_dt) :
@@ -175,23 +53,6 @@ def GetSuspendPlot(the_userprofile,containers,start_time_dt,end_time_dt) :
     return ret_plots
 
 #------------------------------------------------------------------
-def GetContainers(pd_smbg,pd_cont,basals,the_userprofile,start_time_dt,end_time_dt,pd_basal) :
-
-    containers = []
-
-    # food, measurements, insulin, square-wave, dual-wave
-    containers += GetSettingsIndependentContainers(pd_smbg,pd_cont,start_time_dt,end_time_dt)
-    containers.sort(key=lambda x: x.iov_0_utc)
-
-    # Get containers to feed into basal
-    containers += GetBasalSpecialContainers(pd_basal,start_time_dt,end_time_dt)
-
-    # basals
-    containers += GetBasals(basals,the_userprofile,start_time_dt,end_time_dt,containers)
-
-    return containers
-
-#------------------------------------------------------------------
 def GetDeltaPlots(the_userprofile,containers,start_time_dt64,end_time_dt64) :
 
     ret_plots = []
@@ -208,6 +69,7 @@ def GetDeltaPlots(the_userprofile,containers,start_time_dt64,end_time_dt64) :
                        'LiverBasalGlucose':True,
                        'BasalInsulin':True,
                        'LiverFattyGlucose':True,
+                       'ExerciseEffect':True,
                        }
 
     for c in reversed(containers) :
@@ -239,11 +101,13 @@ def GetDeltaPlots(the_userprofile,containers,start_time_dt64,end_time_dt64) :
                      'LiverBasalGlucose':['#FFE066','#FFE066'],
                      'BasalInsulin'     :['#ADC2FF','#ADC2FF'],
                      'LiverFattyGlucose':['Orange','Orange'],
+                     'ExerciseEffect'   :['Purple','Purple'],
                      }.get(classname)[toggleLightDark[classname]]
         toggleLightDark[classname] = not toggleLightDark[classname]
 
         stackgroup = {'InsulinBolus'     :'Negative',
                       'BasalInsulin'     :'Negative',
+                      'ExerciseEffect'   :'Negative',
                       'LiverBasalGlucose':'Positive',
                       'Food'             :'Positive',
                       'LiverFattyGlucose':'Positive',
@@ -317,3 +181,162 @@ def GetPredictionPlot(the_userprofile,containers,start_time_dt64,end_time_dt64) 
                 }
 
     return tmp_plot
+
+#------------------------------------------------------------------
+def FormatTimeString(time_str) :
+    return pd.to_datetime(time_str).strftime('%Y-%m-%d %H:%M')
+
+#------------------------------------------------------------------
+def GetSettingsIndependentConts_Tablef(pd_smbg,pd_cont,start_time_dt64,end_time_dt64) :
+
+    containers_dictf = []
+
+    st_relevantEvents = start_time_dt64 - datetime.timedelta(hours=12)
+    st_oneDayBefore = start_time_dt64 - datetime.timedelta(hours=24)
+
+    # measurement
+    bgs = pd_smbg[(pd.to_datetime(pd_smbg['deviceTime']) > st_oneDayBefore) & (pd.to_datetime(pd_smbg['deviceTime']) < end_time_dt64)]
+    for i in range(len(bgs)) :
+
+        entry = bgs.iloc[i]
+        iov_1 = end_time_dt64.strftime('%Y-%m-%dT%H:%M:%S') if (i==0) else bgs.iloc[i+1]['deviceTime']
+        value = int(round(entry['value']*18.01559))
+
+        c = {'class':'BGMeasurement','magnitude':value,'hr':'hr','duration_hr':'-',
+             'iov_0_str':FormatTimeString(entry['deviceTime'])}
+
+        containers_dictf.append(c)
+
+        # This will exit after the first measurement before our time of interest
+        if pd.to_datetime(bgs.iloc[i]['deviceTime']) < start_time_dt64 :
+            break
+
+    # insulin
+    insulins = pd_cont[(pd_cont['type'] == 'bolus') & (pd.to_datetime(pd_cont['deviceTime']) > st_relevantEvents) & (pd.to_datetime(pd_cont['deviceTime']) < end_time_dt64)]
+    for i in range(len(insulins)) :
+
+        entry = insulins.iloc[i]
+        subType = entry['subType']
+        deviceTime = FormatTimeString(entry['deviceTime'])
+
+        if subType == 'normal' :
+            # insulin = InsulinBolus.FromStringDate('2019-02-24T09:00:00',2.0)
+            c = {'class':'InsulinBolus','magnitude':entry['normal'],'hr':'hr','duration_hr':'profile',
+                 'iov_0_str':deviceTime}
+
+        elif subType == 'square' :
+            # swb = SquareWaveBolus.FromStringDate('2019-02-24T12:00:00',3,2.0) # hours first
+            duration_hr = datetime.timedelta(milliseconds=entry['duration']).total_seconds()/3600.
+            c = {'class':'SquareWaveBolus','magnitude':entry['normal'],'hr':'hr','duration_hr':duration_hr,
+                 'iov_0_str':deviceTime}
+
+        elif subType == 'dual/square' :
+            # dual wave bolus: hr, extended, normal
+            duration_hr = datetime.timedelta(milliseconds=entry['duration']).total_seconds()/3600.
+            c = {'class':'DualWaveBolus','magnitude':'%.1fn/%.1fd'%(entry['normal'],entry['extended']),
+                 'hr':'hr','duration_hr':duration_hr,'iov_0_str':deviceTime}
+
+        else :
+            print("Error - this is a bolus, but I do not know the subType.")
+            continue
+
+        containers_dictf.append(c)
+
+    foods = pd_cont[(pd_cont['type'] == 'wizard') & (pd.to_datetime(pd_cont['deviceTime']) > st_relevantEvents) & (pd.to_datetime(pd_cont['deviceTime']) < end_time_dt64)]
+    for i in range(len(foods)) :
+        entry = foods.iloc[i]
+        if int(entry['carbInput']) == 0 :
+            continue
+
+        c = {'class':'Food','magnitude':entry['carbInput'],'hr':'hr','duration_hr':'profile',
+             'iov_0_str':FormatTimeString(entry['deviceTime'])}
+
+        containers_dictf.append(c)
+
+    return containers_dictf
+
+#------------------------------------------------------------------
+def GetBasals_Tablef() :
+
+    containers = []
+
+    basal = {'class':'BasalInsulin','magnitude':'-','iov_0_str':'-','duration_hr':'-','hr':''}
+
+    containers.append(basal)
+
+    # liver basal
+    liver_glucose = {'class':'LiverBasalGlucose','magnitude':'-','iov_0_str':'-','duration_hr':'-','hr':''}
+
+    containers.append(liver_glucose)
+
+    return containers
+
+#------------------------------------------------------------------
+def GetBasalSpecialConts_Tablef(pd_basal,start_time_dt64,end_time_dt64) :
+
+    containers = []
+
+    st_relevantEvents = start_time_dt64 - datetime.timedelta(hours=12)
+    basals = pd_basal[(pd.to_datetime(pd_basal['deviceTime']) > st_relevantEvents) & (pd.to_datetime(pd_basal['deviceTime']) < end_time_dt64)]
+
+    for i in range(len(basals)) :
+        entry = basals.iloc[i]
+        deviceTime = entry['deviceTime']
+        deviceTime_end = entry['deviceTime_end_fixed']
+
+        # suspend
+        if entry['percent_fixed'] == 0 :
+            c = {'class':'Suspend','iov_0_str':deviceTime,'iov_1_str':deviceTime_end,'hr':'hr','magnitude':0}
+
+        else :
+            c = {'class':'TempBasal','iov_0_str':deviceTime,'iov_1_str':deviceTime_end,'hr':'hr','magnitude':entry['percent_fixed']}
+
+        containers.append(c)
+
+    # Merge adjacent temp basals (this is an artifact of how they are saved)
+    def MergeTempBasals(conts) :
+        for i in range(len(conts)-1) :
+            c1 = conts[i]
+            c2 = conts[i+1]
+            if (not c1['class'] == 'TempBasal') or (not c2['class'] == 'TempBasal') :
+                continue
+            if c1['magnitude'] != c2['magnitude'] :
+                continue
+
+            if c2['iov_1_str'] == c1['iov_0_str'] :
+                cmerged = {'class':'TempBasal','iov_0_str':c2['iov_0_str'],'iov_1_str':c1['iov_1_str'],'magnitude':c1['magnitude'],'hr':'hr'}
+                conts.pop(i)
+                conts.pop(i)
+                conts.insert(i,cmerged)
+                return True
+        return False
+
+    try_merge = True
+    while try_merge :
+        try_merge = MergeTempBasals(containers)
+
+    for c in containers :
+
+        duration = (pd.to_datetime(c['iov_0_str']) - pd.to_datetime(c['iov_1_str'])).total_seconds()/3600.
+        c['duration_hr'] = duration
+        del c['iov_1_str'] # we do not want this floating around to avoid ambuguity with (editable) duration
+        c['iov_0_str'] = FormatTimeString(c['iov_0_str'])
+
+    return containers
+
+#------------------------------------------------------------------
+def GetContainers_Tablef(pd_smbg,pd_cont,start_time_dt,end_time_dt,pd_basal) :
+    # containers formatted for the table first!
+
+    containers = []
+
+    # food, measurements, insulin, square-wave, dual-wave
+    containers += GetSettingsIndependentConts_Tablef(pd_smbg,pd_cont,start_time_dt,end_time_dt)
+
+    # Get containers to feed into basal
+    containers += GetBasalSpecialConts_Tablef(pd_basal,start_time_dt,end_time_dt)
+
+    # basals
+    containers += GetBasals_Tablef()
+
+    return containers

@@ -19,6 +19,7 @@ import numpy as np
 import pandas as pd
 import dash_table
 import plotly
+import json
 
 # Tools
 import ManagePlots
@@ -200,7 +201,7 @@ def update_file(contents, name):
                State('upload-cgm-panda','children'),
                State('upload-basal-panda','children'),
                ])
-def update_plot(pd_smbg_json,active_profile_json,active_container_json,show_this_day_t,show_overview_t,date,basals_json,pd_cont_json,pd_cgm_json,pd_basal_json):
+def update_plot(pd_smbg_json,active_profile_json,active_containers_json,show_this_day_t,show_overview_t,date,basals_json,pd_cont_json,pd_cgm_json,pd_basal_json):
 
     #print('basals_json',basals_json)
     #print('active_profile_json',active_profile_json)
@@ -263,8 +264,15 @@ def update_plot(pd_smbg_json,active_profile_json,active_container_json,show_this
     basals = Settings.UserSetting.fromJson(basals_json)
     active_profile = Settings.TrueUserProfile.fromJson(active_profile_json)
     pd_basal = pd.read_json(pd_basal_json)
+    active_containers_tablef = list(json.loads(c) for c in active_containers_json.split('$$$'))
+    active_containers = ContainersTableFunctions.tablefToContainers(active_containers_tablef,date)
+    active_containers += ManageBGActions.GetBasals(basals,active_profile,start_time_dt,end_time_dt,active_containers)
 
-    plots = ManagePlots.GetAnalysisPlots(pd_smbg,pd_cont,basals,active_profile,start_time_dt,end_time_dt,pd_basal)
+    for c in active_containers :
+        if c.IsExercise() :
+            c.LoadContainers(active_containers)
+
+    plots = ManagePlots.GetAnalysisPlots(pd_smbg,pd_cont,basals,active_containers,active_profile,start_time_dt,end_time_dt,pd_basal)
     for plot in plots[0] :
         fig.append_trace(plot,1,1)
     for plot in plots[1] :
@@ -283,14 +291,12 @@ def update_plot(pd_smbg_json,active_profile_json,active_container_json,show_this
                Input('overview-button','n_clicks_timestamp')],
               [State('my-date-picker-single', 'date'),
                State('upload-smbg-panda', 'children'),
-               State('all-basal-schedules','children'),
                State('upload-container-panda','children'),
                State('upload-basal-panda','children'),
-               State('bwz-profile', 'children'), # make the containers (fatty) from the original bwz
                State('containers-dropdown', 'options'),
                State('containers-dropdown', 'value'),
                ])
-def make_day_containers(show_this_day_t,show_overview_t,date,pd_smbg_json,basals_json,pd_cont_json,pd_basal_json,bwz_profile_json,options,value):
+def make_day_containers(show_this_day_t,show_overview_t,date,pd_smbg_json,pd_cont_json,pd_basal_json,options,value):
 
     loadDayContainers = Utils.ShowDayNotOverview(show_this_day_t,show_overview_t)
 
@@ -299,18 +305,16 @@ def make_day_containers(show_this_day_t,show_overview_t,date,pd_smbg_json,basals
 
     pd_smbg = pd.read_json(pd_smbg_json)
     pd_cont = pd.read_json(pd_cont_json)
-    basals = Settings.UserSetting.fromJson(basals_json)
-    active_profile = Settings.TrueUserProfile.fromJson(bwz_profile_json.split('$$$')[1])
     pd_basal = pd.read_json(pd_basal_json)
 
     start_time_dt,end_time_dt = Utils.GetDayBeginningAndEnd_dt(date)
 
-    bwz_conts = ManageBGActions.GetContainers(pd_smbg,pd_cont,basals,active_profile,start_time_dt,end_time_dt,pd_basal)
+    bwz_conts_Tablef = ManageBGActions.GetContainers_Tablef(pd_smbg,pd_cont,start_time_dt,end_time_dt,pd_basal)
 
     the_time = start_time_dt.strftime('%Y-%m-%d')
     the_name = '%s BWZ Inputs'%(the_time)
     the_name_time_tagged = '@%s BWZ Inputs'%(the_time)
-    bwz_conts_json = '$$$'.join([the_name_time_tagged]+list(ContainersTableFunctions.containerToJson(c) for c in bwz_conts))
+    bwz_conts_json = '$$$'.join([the_name_time_tagged]+list(json.dumps(c) for c in bwz_conts_Tablef))
 
     if the_name not in list(o['label'] for o in options) :
         options.append({'label':the_name,'value':bwz_conts_json})
@@ -400,7 +404,14 @@ def update_derived_table(table,ta):
 #
 # Update the active containers from the table
 #
+@app.callback(Output('active-containers', 'children'),
+              [Input('container-table-editable', 'data'),
+               Input('container-table-fixed', 'data'),
+               ],
+              )
+def convert_container_tables_to_active(table_ed,table_fix) :
 
+    return ContainersTableFunctions.ConvertContainerTablesToActiveList_Tablef(table_ed,table_fix)
 
 #
 # Update the active settings from the table
@@ -417,7 +428,7 @@ def update_active_profile(table,ta,tf):
     return SettingsTableFunctions.ConvertBaseTableToProfile(table,ta,tf)
 
 #
-# Add row to container table
+# Populate container tables (or add new rows)
 #
 @app.callback([Output('container-table-editable', 'data'),
                Output('container-table-fixed', 'data'),
@@ -431,7 +442,7 @@ def update_active_profile(table,ta,tf):
                State('container-table-fixed', 'columns'),
                State('my-date-picker-single', 'date'),
                ])
-def add_row(n_clicks, containers_selected_from_dropdown, rows_ed, columns_ed, rows_fix, columns_fix, date):
+def make_container_tables(n_clicks, containers_selected_from_dropdown, rows_ed, columns_ed, rows_fix, columns_fix, date):
 
     if not dash.callback_context.triggered:
         raise PreventUpdate
@@ -450,7 +461,7 @@ def add_row(n_clicks, containers_selected_from_dropdown, rows_ed, columns_ed, ro
         return rows_ed, rows_fix
 
     # Otherwise, it was a new dropdown:
-    return ContainersTableFunctions.UpdateContainerTable(containers_selected_from_dropdown)
+    return ContainersTableFunctions.UpdateContainerTable(containers_selected_from_dropdown,date)
 
 #
 # Update units table to reflect container table

@@ -2,6 +2,8 @@
 from dash_table import DataTable
 import json
 import datetime
+import Utils
+from BGModel.BGActionClasses import *
 
 columns = [['IsBWZ','IsBWZ'],
            ['class','Event type'],
@@ -24,7 +26,7 @@ style_colors = [{'if': {'filter_query':'{class} eq "BasalInsulin"'},'color':'Blu
                 {'if': {'filter_query':'{class} eq "BGMeasurement"'},'color':'Gray'},
                 {'if': {'filter_query':'{class} eq "TempBasal"'},'color':'Gray'},
                 {'if': {'filter_query':'{class} eq "Suspend"'},'color':'Gray'},
-                {'if': {'filter_query':'{class} eq "LiverBasalGlucose"'},'color':'Yellow'},
+                {'if': {'filter_query':'{class} eq "LiverBasalGlucose"'},'color':'#E1C55B'},
                 {'if': {'filter_query':'{class} eq "InsulinBolus"'},'color':'Green'},
                 {'if': {'filter_query':'{class} eq "Food"'},'color':'Red'},
                 ]
@@ -94,7 +96,7 @@ container_table_fixed_units = DataTable(id='container-table-fixed-units',
                                         )
 
 #------------------------------------------------------------------
-def UpdateContainerTable(the_containers_json) :
+def UpdateContainerTable(the_containers_json,date) :
 
     out_table_editable = []
     out_table_fixed = []
@@ -106,73 +108,176 @@ def UpdateContainerTable(the_containers_json) :
         return out_table_editable, out_table_fixed
 
     containers = the_containers_json.split('$$$')[1:]
-    the_date = the_containers_json.split('$$$')[0]
+    the_date = the_containers_json.split('$$$')[0].replace('@','')
 
     fixed_conts = ['BasalInsulin','LiverBasalGlucose','BGMeasurement','InsulinBolus','TempBasal','Suspend']
 
+    hidden = []
+    start_time_dt,end_time_dt = Utils.GetDayBeginningAndEnd_dt(date)
+
     for c in list(json.loads(c) for c in containers) :
-        if c['class'] in fixed_conts :
+
+        iov_0_str = c['iov_0_str'].rstrip('- ')
+        hide = iov_0_str and datetime.datetime.strptime(iov_0_str,'%Y-%m-%d %H:%M') < start_time_dt
+
+        if hide :
+            hidden.append(c)
+        elif c['class'] in fixed_conts :
             out_table_fixed.append(c)
         else :
             out_table_editable.append(c)
 
-    add_an_event['iov_0_str'] = the_date.replace('BWZ Inputs','')+' 00:00'
+    # hide containers that are before the start-time of the day
+    if out_table_fixed :
+        out_table_fixed[0]['hidden'] = hidden
+
+    add_an_event['iov_0_str'] = ' '.join( (the_date.replace('BWZ Inputs','')+' 00:00').split() )
     out_table_editable.append(add_an_event)
+
+    def sorter(x) :
+        if x['class'] == 'BasalInsulin' :
+            return 'x'
+        if x['class'] == 'LiverBasalGlucose' :
+            return 'y'
+        if 'Add' in x['class'] :
+            return 'z'
+        return x['iov_0_str']
+
+    out_table_editable.sort(key=sorter)
+    out_table_fixed.sort(key=sorter)
+
     return out_table_editable, out_table_fixed
 
 #------------------------------------------------------------------
-def containerToJson(c) :
+def tablefToContainers(conts,date) :
+    # Up until now we have stored everything in "Tablef" format. NOW we make the containers themselves.
 
-    ret = dict()
-    ret['class'] = c.__class__.__name__
-    ret['magnitude'] = '-'
-    ret['iov_0_str'] = '-'
-    ret['duration_hr'] = '-'
+    conts_out = []
 
-    if hasattr(c,'iov_0_utc') :
-        if not c.__class__.__name__ in ['BasalInsulin','LiverBasalGlucose'] :
-            ret['iov_0_str'] = datetime.datetime.fromtimestamp(c.iov_0_utc).strftime("%Y-%m-%d %H:%M")
+    start_time_dt,end_time_dt = Utils.GetDayBeginningAndEnd_dt(date)
 
-    for i in ['iov_0_utc','iov_1_utc'] :
-        if hasattr(c,i) :
-            ret[i] = getattr(c,i)
-            if c.__class__.__name__ in ['BGMeasurement','BasalInsulin','LiverFattyGlucose','LiverBasalGlucose'] :
+    # put all BGs last, for iov_1 calc
+    def sort_BG(x) :
+        if x['class'] != 'BGMeasurement' :
+            return '0'
+        return x['iov_0_str']
+
+    conts.sort(key=sort_BG)
+
+    for i in range(len(conts)) :
+        c = conts[i]
+        iov_0_str = c['iov_0_str']+':00'
+
+        args = []
+
+        # Going to be a bit careful here about ... security?
+        the_class = {'BGMeasurement':BGMeasurement,
+                     'InsulinBolus':InsulinBolus,
+                     'SquareWaveBolus':SquareWaveBolus,
+                     'DualWaveBolus':DualWaveBolus,
+                     'Food':Food,
+                     'TempBasal':TempBasal,
+                     'Suspend':Suspend,
+                     'LiverFattyGlucose':LiverFattyGlucose,
+                     'ExerciseEffect':ExerciseEffect,
+                     }.get(c['class'],None)
+
+        if the_class == None :
+            continue
+
+        # Get iov_1 in a way that is compatible with the table
+        if c['class'] == 'BGMeasurement' :
+            try :
+                args = iov_0_str,conts[i+1]['iov_0_str']+':00',float(c['magnitude'])
+            except IndexError :
+                args = iov_0_str,end_time_dt.strftime('%Y-%m-%d %H:%M:00'),float(c['magnitude'])
+
+        elif c['class'] in ['TempBasal','ExerciseEffect'] :
+            try :
+                iov_1_dt = datetime.datetime.strptime(iov_0_str,'%Y-%m-%d %H:%M:%S')+datetime.timedelta(hours=float(c['duration_hr']))
+                iov_1_str = datetime.datetime.strftime(iov_1_dt,'%Y-%m-%d %H:%M:00')
+                args = iov_0_str,iov_1_str,float(c['magnitude'])
+            except ValueError :
                 continue
-            ret['duration_hr'] = round((c.iov_1_utc-c.iov_0_utc)/3600.,1)
-            ret['hr'] = 'hr'
 
-    if hasattr(c,'Ta_tempBasal') :
-        ret['duration_hr'] = round(c.Ta_tempBasal,1)
-        ret['hr'] = 'hr'
+        # Square wave
+        elif c['class'] == 'SquareWaveBolus' :
+            args = iov_0_str,float(c['duration_hr']),float(c['magnitude'])
 
-    for i in ['food','const_BG'] :
-        if hasattr(c,i) :
-            ret[i] = getattr(c,i)
-            ret['magnitude'] = getattr(c,i)
+        # LiverFattyGlucose
+        elif c['class'] == 'LiverFattyGlucose' :
+            try :
+                iov_1_dt = datetime.datetime.strptime(iov_0_str,'%Y-%m-%d %H:%M:%S')+datetime.timedelta(hours=float(c['duration_hr']))
+                iov_1_str = datetime.datetime.strftime(iov_1_dt,'%Y-%m-%d %H:%M:00')
+                args = iov_0_str,iov_1_str,float(c['magnitude']),float(c['duration_hr']),-999.
+            except (ValueError, TypeError) as e :
+                continue
 
-    for i in ['insulin'] :
-        if hasattr(c,i) :
-            ret[i] = round(getattr(c,i),1)
-            ret['magnitude'] = ret[i]
+        # Dual wave (gross)
+        elif c['class'] == 'DualWaveBolus' :
+            mag = c['magnitude'].split('/')
+            normal = 0
+            delayed = 0
+            if len(mag) == 1 :
+                try :
+                    normal = float(mag)
+                except ValueError :
+                    pass
+            elif len(mag) == 2 :
+                for m in mag :
+                    if 'n' in m :
+                        try :
+                            normal = float(m.strip('n'))
+                        except ValueError :
+                            pass
+                    if 'd' in m :
+                        try :
+                            delayed = float(m.strip('n'))
+                        except ValueError :
+                            pass
+            args = iov_0_str,c['duration_hr'],delayed,normal
 
-    for i in ['factor','fractionOfBasal','basalFactor'] :
-        if hasattr(c,i) :
-            ret[i] = round(getattr(c,i),2)*100
-            ret['magnitude'] = ret[i]
+        # InsulinBolus, Food
+        else :
+            try :
+                args = iov_0_str,float(c['magnitude'])
+            except (ValueError, TypeError) as e:
+                continue
 
-    for i in ['duration_hr','BasalRates','annotation','Ta_tempBasal'] :
-        if hasattr(c,i) :
-            ret[i] = getattr(c,i)
-            if i == 'duration_hr' :
-                ret['hr'] = 'hr'
+        # make the container
+        c_out = the_class.FromStringDate(*args)
 
-    # square wave bolus
-    for i in ['insulin_inst','insulin_square'] :
-        if hasattr(c,i) :
-            ret[i] = getattr(c,i)
-            ret['magnitude'] = '%.1f+%.1f'%(c.insulin_inst,c.insulin_square)
+        try :
+            c_out.Ta = float(c['duration_hr'])
+        except ValueError :
+            pass
 
-    return json.dumps(ret)
+        conts_out.append(c_out)
+
+    # Add basals
+    return conts_out
+
+#------------------------------------------------------------------
+def ConvertContainerTablesToActiveList_Tablef(table_ed,table_fix) :
+    # In: tableformat, Out: tableformat
+
+    containers = []
+
+    # grab "hidden" containers
+    for c in table_fix :
+        if 'hidden' in c.keys() :
+            for ci in c['hidden'] :
+                containers.append(ci)
+
+    if len(table_fix) :
+        for c in table_fix :
+            containers.append(c)
+
+    if len(table_ed) :
+        for c in table_ed :
+            containers.append(c)
+
+    return '$$$'.join(list(json.dumps(c) for c in containers))
 
 #------------------------------------------------------------------
 def UpdateUnits(rows) :
@@ -180,14 +285,14 @@ def UpdateUnits(rows) :
     for row in rows :
         if row['class'] == 'Food' :
             units.append({'unit':'g'})
-        elif row['class'] in ['LiverFattyGlucose','TempBasal'] :
+        elif row['class'] in ['TempBasal'] :
             units.append({'unit':'%'})
         elif row['class'] == 'ExerciseEffect' :
             units.append({'unit':u'\u26f9'})
             #units.append({'unit':('\u26f9')*round(float(row['magnitude']))})
         elif row['class'] == 'InsulinBolus' :
             units.append({'unit':'u'})
-        elif row['class'] == 'BGMeasurement' :
+        elif row['class'] in ['BGMeasurement','LiverFattyGlucose'] :
             units.append({'unit':'mg/dL'})
         else :
             units.append({'unit':''})

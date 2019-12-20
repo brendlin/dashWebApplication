@@ -46,11 +46,9 @@ def GetPlotCGM(pd_cgm,start_time_dt,end_time_dt) :
 
     return cgm_plot
 
-def GetAnalysisPlots(pd_smbg,pd_cont,basals,the_userprofile,start_time_dt,end_time_dt,pd_basal) :
+def GetAnalysisPlots(pd_smbg,pd_cont,basals,containers,the_userprofile,start_time_dt,end_time_dt,pd_basal) :
 
     return_plots = [[],[]]
-
-    containers = ManageBGActions.GetContainers(pd_smbg,pd_cont,basals,the_userprofile,start_time_dt,end_time_dt,pd_basal)
 
     # prediction plot
     prediction_plot = ManageBGActions.GetPredictionPlot(the_userprofile,containers,start_time_dt,end_time_dt)
