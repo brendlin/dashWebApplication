@@ -200,6 +200,15 @@ def tablefToContainers(conts,date) :
             except ValueError :
                 continue
 
+        # Suspend
+        elif c['class'] in ['Suspend'] :
+            try :
+                iov_1_dt = datetime.datetime.strptime(iov_0_str,'%Y-%m-%d %H:%M:%S')+datetime.timedelta(hours=float(c['duration_hr']))
+                iov_1_str = datetime.datetime.strftime(iov_1_dt,'%Y-%m-%d %H:%M:00')
+                args = iov_0_str,iov_1_str
+            except ValueError :
+                continue
+
         # Square wave
         elif c['class'] == 'SquareWaveBolus' :
             args = iov_0_str,float(c['duration_hr']),float(c['magnitude'])

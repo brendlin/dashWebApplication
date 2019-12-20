@@ -218,22 +218,24 @@ def GetSettingsIndependentConts_Tablef(pd_smbg,pd_cont,start_time_dt64,end_time_
         entry = insulins.iloc[i]
         subType = entry['subType']
         deviceTime = FormatTimeString(entry['deviceTime'])
+        normal = round(entry['normal'],1)
+        extended = round(entry['extended'],1)
 
         if subType == 'normal' :
             # insulin = InsulinBolus.FromStringDate('2019-02-24T09:00:00',2.0)
-            c = {'class':'InsulinBolus','magnitude':entry['normal'],'hr':'hr','duration_hr':'profile',
+            c = {'class':'InsulinBolus','magnitude':normal,'hr':'hr','duration_hr':'profile',
                  'iov_0_str':deviceTime}
 
         elif subType == 'square' :
             # swb = SquareWaveBolus.FromStringDate('2019-02-24T12:00:00',3,2.0) # hours first
             duration_hr = datetime.timedelta(milliseconds=entry['duration']).total_seconds()/3600.
-            c = {'class':'SquareWaveBolus','magnitude':entry['normal'],'hr':'hr','duration_hr':duration_hr,
+            c = {'class':'SquareWaveBolus','magnitude':normal,'hr':'hr','duration_hr':duration_hr,
                  'iov_0_str':deviceTime}
 
         elif subType == 'dual/square' :
             # dual wave bolus: hr, extended, normal
             duration_hr = datetime.timedelta(milliseconds=entry['duration']).total_seconds()/3600.
-            c = {'class':'DualWaveBolus','magnitude':'%.1fn/%.1fd'%(entry['normal'],entry['extended']),
+            c = {'class':'DualWaveBolus','magnitude':'%.1fn/%.1fd'%(normal,extended),
                  'hr':'hr','duration_hr':duration_hr,'iov_0_str':deviceTime}
 
         else :
@@ -317,7 +319,8 @@ def GetBasalSpecialConts_Tablef(pd_basal,start_time_dt64,end_time_dt64) :
 
     for c in containers :
 
-        duration = (pd.to_datetime(c['iov_0_str']) - pd.to_datetime(c['iov_1_str'])).total_seconds()/3600.
+        duration = (pd.to_datetime(c['iov_1_str']) - pd.to_datetime(c['iov_0_str'])).total_seconds()/3600.
+        duration = round(duration,2)
         c['duration_hr'] = duration
         del c['iov_1_str'] # we do not want this floating around to avoid ambuguity with (editable) duration
         c['iov_0_str'] = FormatTimeString(c['iov_0_str'])
