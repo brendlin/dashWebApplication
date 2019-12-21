@@ -259,6 +259,12 @@ def update_plot(pd_smbg_json,active_profile_json,active_containers_json,show_thi
 
     #fig.update_layout(transition={'duration': 500})
 
+    # After this point, we assume we are doing the full analysis.
+    pd_cont = pd.read_json(pd_cont_json)
+    basals = Settings.UserSetting.fromJson(basals_json)
+    active_profile = Settings.TrueUserProfile.fromJson(active_profile_json)
+    pd_basal = pd.read_json(pd_basal_json)
+
     # load containers, and check if they line up with the date!
     active_containers_tablef = list(json.loads(c) for c in active_containers_json.split('$$$'))
     for c in active_containers_tablef :
@@ -272,11 +278,6 @@ def update_plot(pd_smbg_json,active_profile_json,active_containers_json,show_thi
         if c.IsExercise() :
             c.LoadContainers(active_containers)
 
-    # After this point, we assume we are doing the full analysis.
-    pd_cont = pd.read_json(pd_cont_json)
-    basals = Settings.UserSetting.fromJson(basals_json)
-    active_profile = Settings.TrueUserProfile.fromJson(active_profile_json)
-    pd_basal = pd.read_json(pd_basal_json)
     plots = ManagePlots.GetAnalysisPlots(pd_smbg,pd_cont,basals,active_containers,active_profile,start_time_dt,end_time_dt,pd_basal)
     for plot in plots[0] :
         fig.append_trace(plot,1,1)
