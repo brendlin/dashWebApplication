@@ -259,12 +259,12 @@ def update_plot(pd_smbg_json,active_profile_json,active_containers_json,show_thi
 
     #fig.update_layout(transition={'duration': 500})
 
-    # After this point, we assume we are doing the full analysis.
-    pd_cont = pd.read_json(pd_cont_json)
-    basals = Settings.UserSetting.fromJson(basals_json)
-    active_profile = Settings.TrueUserProfile.fromJson(active_profile_json)
-    pd_basal = pd.read_json(pd_basal_json)
+    # load containers, and check if they line up with the date!
     active_containers_tablef = list(json.loads(c) for c in active_containers_json.split('$$$'))
+    for c in active_containers_tablef :
+        if (c.get('day_tag',None) and start_time_dt.strftime('%Y-%m-%d') not in c['day_tag']) :
+            #print('skipping this update')
+            raise PreventUpdate
     active_containers = ContainersTableFunctions.tablefToContainers(active_containers_tablef,date)
     active_containers += ManageBGActions.GetBasals(basals,active_profile,start_time_dt,end_time_dt,active_containers)
 
@@ -272,6 +272,11 @@ def update_plot(pd_smbg_json,active_profile_json,active_containers_json,show_thi
         if c.IsExercise() :
             c.LoadContainers(active_containers)
 
+    # After this point, we assume we are doing the full analysis.
+    pd_cont = pd.read_json(pd_cont_json)
+    basals = Settings.UserSetting.fromJson(basals_json)
+    active_profile = Settings.TrueUserProfile.fromJson(active_profile_json)
+    pd_basal = pd.read_json(pd_basal_json)
     plots = ManagePlots.GetAnalysisPlots(pd_smbg,pd_cont,basals,active_containers,active_profile,start_time_dt,end_time_dt,pd_basal)
     for plot in plots[0] :
         fig.append_trace(plot,1,1)
@@ -398,6 +403,11 @@ def update_derived_table(table,ta):
     if not ta :
         raise PreventUpdate
 
+    try :
+        float(ta)
+    except ValueError :
+        raise PreventUpdate
+
     return SettingsTableFunctions.UpdateDerivedTable(table,ta)
 
 
@@ -423,6 +433,11 @@ def convert_container_tables_to_active(table_ed,table_fix) :
 def update_active_profile(table,ta,tf):
 
     if (not ta) or (not tf) :
+        raise PreventUpdate
+
+    try :
+        float(ta) and float(tf)
+    except ValueError :
         raise PreventUpdate
 
     return SettingsTableFunctions.ConvertBaseTableToProfile(table,ta,tf)

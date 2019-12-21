@@ -108,7 +108,7 @@ def UpdateContainerTable(the_containers_json,date) :
         return out_table_editable, out_table_fixed
 
     containers = the_containers_json.split('$$$')[1:]
-    the_date = the_containers_json.split('$$$')[0].replace('@','')
+    the_date = the_containers_json.split('$$$')[0].replace('@','').replace('BWZ Inputs','').rstrip()
 
     fixed_conts = ['BasalInsulin','LiverBasalGlucose','BGMeasurement','InsulinBolus','TempBasal','Suspend']
 
@@ -119,6 +119,9 @@ def UpdateContainerTable(the_containers_json,date) :
 
         iov_0_str = c['iov_0_str'].rstrip('- ')
         hide = iov_0_str and datetime.datetime.strptime(iov_0_str,'%Y-%m-%d %H:%M') < start_time_dt
+
+        # this was prepared for a particular day, so we tag it (important for updating the plot)
+        c['day_tag'] = the_date
 
         if hide :
             hidden.append(c)
