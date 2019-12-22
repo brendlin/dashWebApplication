@@ -274,7 +274,7 @@ def GetBasals_Tablef() :
     return containers
 
 #------------------------------------------------------------------
-def GetBasalSpecialConts_Tablef(pd_basal,start_time_dt64,end_time_dt64) :
+def GetBasalSpecialConts_Tablef(pd_basal,start_time_dt64,end_time_dt64,basal_settings,the_userprofile) :
 
     containers = []
 
@@ -317,6 +317,8 @@ def GetBasalSpecialConts_Tablef(pd_basal,start_time_dt64,end_time_dt64) :
     while try_merge :
         try_merge = MergeTempBasals(containers)
 
+    fatty_events = []
+
     for c in containers :
 
         duration = (pd.to_datetime(c['iov_1_str']) - pd.to_datetime(c['iov_0_str'])).total_seconds()/3600.
@@ -325,10 +327,34 @@ def GetBasalSpecialConts_Tablef(pd_basal,start_time_dt64,end_time_dt64) :
         del c['iov_1_str'] # we do not want this floating around to avoid ambuguity with (editable) duration
         c['iov_0_str'] = FormatTimeString(c['iov_0_str'])
 
+        # Make a fatty event!
+        if c['class'] == 'TempBasal' and float(c['magnitude']) > 1 :
+
+            # Update every 6 minutes... same as in BGActionClasses
+            time_step_hr = 0.1
+            time_hr = 0
+            BGEffect = 0
+            while time_hr < c['duration_hr'] :
+
+                time_hr += time_step_hr
+                # sensitivity setting at time
+                insulin_sensi = the_userprofile.getInsulinSensitivityHrMidnight(time_hr)
+
+                # basal setting at time
+                bolus_val = basal_settings.GetLatestSettingAtTime(time_hr)*float(time_step_hr)
+
+                BGEffect += -insulin_sensi*bolus_val*(c['magnitude']-1)
+
+            liver = {'class':'LiverFattyGlucose','duration_hr':c['duration_hr'],'iov_0_str':c['iov_0_str'],'magnitude':BGEffect,'hr':'hr'}
+            fatty_events.append(liver)
+
+    for f in fatty_events :
+        containers.append(f)
+
     return containers
 
 #------------------------------------------------------------------
-def GetContainers_Tablef(pd_smbg,pd_cont,start_time_dt,end_time_dt,pd_basal) :
+def GetContainers_Tablef(pd_smbg,pd_cont,basals,the_userprofile,start_time_dt,end_time_dt,pd_basal) :
     # containers formatted for the table first!
 
     containers = []
@@ -337,7 +363,7 @@ def GetContainers_Tablef(pd_smbg,pd_cont,start_time_dt,end_time_dt,pd_basal) :
     containers += GetSettingsIndependentConts_Tablef(pd_smbg,pd_cont,start_time_dt,end_time_dt)
 
     # Get containers to feed into basal
-    containers += GetBasalSpecialConts_Tablef(pd_basal,start_time_dt,end_time_dt)
+    containers += GetBasalSpecialConts_Tablef(pd_basal,start_time_dt,end_time_dt,basals,the_userprofile)
 
     # basals
     containers += GetBasals_Tablef()

@@ -272,7 +272,8 @@ def update_plot(pd_smbg_json,active_profile_json,active_containers_json,show_thi
             #print('skipping this update')
             raise PreventUpdate
     active_containers = ContainersTableFunctions.tablefToContainers(active_containers_tablef,date)
-    active_containers += ManageBGActions.GetBasals(basals,active_profile,start_time_dt,end_time_dt,active_containers)
+    # we already made fatty events, so do not re-make them here!
+    active_containers += ManageBGActions.GetBasals(basals,active_profile,start_time_dt,end_time_dt,[])
 
     for c in active_containers :
         if c.IsExercise() :
@@ -297,12 +298,14 @@ def update_plot(pd_smbg_json,active_profile_json,active_containers_json,show_thi
                Input('overview-button','n_clicks_timestamp')],
               [State('my-date-picker-single', 'date'),
                State('upload-smbg-panda', 'children'),
+               State('all-basal-schedules','children'),
                State('upload-container-panda','children'),
                State('upload-basal-panda','children'),
+               State('bwz-profile', 'children'), # make the containers (fatty) from the original bwz
                State('containers-dropdown', 'options'),
                State('containers-dropdown', 'value'),
                ])
-def make_day_containers(show_this_day_t,show_overview_t,date,pd_smbg_json,pd_cont_json,pd_basal_json,options,value):
+def make_day_containers(show_this_day_t,show_overview_t,date,pd_smbg_json,basals_json,pd_cont_json,pd_basal_json,bwz_profile_json,options,value):
 
     loadDayContainers = Utils.ShowDayNotOverview(show_this_day_t,show_overview_t)
 
@@ -311,11 +314,13 @@ def make_day_containers(show_this_day_t,show_overview_t,date,pd_smbg_json,pd_con
 
     pd_smbg = pd.read_json(pd_smbg_json)
     pd_cont = pd.read_json(pd_cont_json)
+    basals = Settings.UserSetting.fromJson(basals_json)
+    active_profile = Settings.TrueUserProfile.fromJson(bwz_profile_json.split('$$$')[1])
     pd_basal = pd.read_json(pd_basal_json)
 
     start_time_dt,end_time_dt = Utils.GetDayBeginningAndEnd_dt(date)
 
-    bwz_conts_Tablef = ManageBGActions.GetContainers_Tablef(pd_smbg,pd_cont,start_time_dt,end_time_dt,pd_basal)
+    bwz_conts_Tablef = ManageBGActions.GetContainers_Tablef(pd_smbg,pd_cont,basals,active_profile,start_time_dt,end_time_dt,pd_basal)
 
     the_time = start_time_dt.strftime('%Y-%m-%d')
     the_name = '%s BWZ Inputs'%(the_time)
