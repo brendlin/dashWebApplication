@@ -87,7 +87,7 @@ app.layout = html.Div(
         html.Div(id='upload-cgm-panda'      ,style={'display': 'none'},children=None), # This stores the historical basal schedules
         html.Div(id='upload-basal-panda'    ,style={'display': 'none'},children=None),
 
-        html.Div(children=['''Pick a date:''',
+        html.Div(children=['''Pick a date: ''',
                            dcc.DatePickerSingle(id='my-date-picker-single',
                                                 min_date_allowed=datetime.datetime(1995, 8, 5),
                                                 max_date_allowed=datetime.datetime(2017, 9, 19),
@@ -277,7 +277,7 @@ def update_plot(pd_smbg_json,active_profile_json,active_containers_json,show_thi
             raise PreventUpdate
     active_containers = ContainersTableFunctions.tablefToContainers(active_containers_tablef,date)
     # we already made fatty events, so do not re-make them here!
-    active_containers += ManageBGActions.GetBasals(basals,active_profile,start_time_dt,end_time_dt,[])
+    active_containers += ManageBGActions.GetBasals(basals,active_profile,start_time_dt,end_time_dt,active_containers)
 
     for c in active_containers :
         if c.IsExercise() :

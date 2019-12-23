@@ -199,7 +199,7 @@ def tablefToContainers(conts,date) :
             try :
                 iov_1_dt = datetime.datetime.strptime(iov_0_str,'%Y-%m-%d %H:%M:%S')+datetime.timedelta(hours=float(c['duration_hr']))
                 iov_1_str = datetime.datetime.strftime(iov_1_dt,'%Y-%m-%d %H:%M:00')
-                args = iov_0_str,iov_1_str,float(c['magnitude'])
+                args = iov_0_str,iov_1_str,float(c['magnitude'])/100.
             except ValueError :
                 continue
 
@@ -297,11 +297,11 @@ def UpdateUnits(rows) :
     for row in rows :
         if row['class'] == 'Food' :
             units.append({'unit':'g'})
-        elif row['class'] in ['TempBasal'] :
+        elif row['class'] in ['TempBasal','ExerciseEffect'] :
             units.append({'unit':'%'})
-        elif row['class'] == 'ExerciseEffect' :
-            units.append({'unit':u'\u26f9'})
-            #units.append({'unit':('\u26f9')*round(float(row['magnitude']))})
+#         elif row['class'] == 'ExerciseEffect' :
+#             units.append({'unit':u'\u26f9'})
+#             #units.append({'unit':('\u26f9')*round(float(row['magnitude']))})
         elif row['class'] == 'InsulinBolus' :
             units.append({'unit':'u'})
         elif row['class'] in ['BGMeasurement','LiverFattyGlucose'] :

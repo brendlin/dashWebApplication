@@ -15,7 +15,7 @@ def GetBasals(basals,the_userprofile,start_time_dt64,end_time_dt64,input_contain
     basal_atTheTime = basals.getValidSnapshotAtTime(start_time_dt64.strftime('%Y-%m-%dT%H:%M:%S'))
     basal = BasalInsulin(st_oneDayBefore.timestamp(),et_fourHoursAfter.timestamp(),
                          basal_atTheTime, # np.array
-                         the_userprofile.InsulinSensitivity, # list of size 48
+                         None, # no new fatties # the_userprofile.InsulinSensitivity, # list of size 48
                          input_containers)
 
     containers.append(basal)
@@ -291,7 +291,7 @@ def GetBasalSpecialConts_Tablef(pd_basal,start_time_dt64,end_time_dt64,basal_set
             c = {'class':'Suspend','iov_0_str':deviceTime,'iov_1_str':deviceTime_end,'hr':'hr','magnitude':0}
 
         else :
-            c = {'class':'TempBasal','iov_0_str':deviceTime,'iov_1_str':deviceTime_end,'hr':'hr','magnitude':entry['percent_fixed']}
+            c = {'class':'TempBasal','iov_0_str':deviceTime,'iov_1_str':deviceTime_end,'hr':'hr','magnitude':100*entry['percent_fixed']}
 
         containers.append(c)
 
@@ -328,7 +328,7 @@ def GetBasalSpecialConts_Tablef(pd_basal,start_time_dt64,end_time_dt64,basal_set
         c['iov_0_str'] = FormatTimeString(c['iov_0_str'])
 
         # Make a fatty event!
-        if c['class'] == 'TempBasal' and float(c['magnitude']) > 1 :
+        if c['class'] == 'TempBasal' and float(c['magnitude']) > 100. :
 
             # Update every 6 minutes... same as in BGActionClasses
             time_step_hr = 0.1
@@ -343,7 +343,7 @@ def GetBasalSpecialConts_Tablef(pd_basal,start_time_dt64,end_time_dt64,basal_set
                 # basal setting at time
                 bolus_val = basal_settings.GetLatestSettingAtTime(time_hr)*float(time_step_hr)
 
-                BGEffect += -insulin_sensi*bolus_val*(c['magnitude']-1)
+                BGEffect += -insulin_sensi*bolus_val*(c['magnitude']/100.-1)
 
             liver = {'class':'LiverFattyGlucose','duration_hr':c['duration_hr'],'iov_0_str':c['iov_0_str'],'magnitude':BGEffect,'hr':'hr'}
             fatty_events.append(liver)
