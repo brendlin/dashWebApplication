@@ -39,7 +39,7 @@ def GetPlotCGM(pd_cgm,start_time_dt,end_time_dt) :
 
     cgm_plot = {'x': cgm_inrange['Time_dt'],
                 'y': np.round(cgm_inrange['Glucose']),
-                'type': 'scatter', 'name': 'CGM Readings','mode':'lines',
+                'type': 'scatter', 'name': 'CGM Readings','mode':'markers',
                 'marker':{'color':'#77B6EA','size':6},
                 'line': {'color':'#77B6EA', 'width':2}
                 }
