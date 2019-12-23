@@ -117,7 +117,10 @@ app.layout = html.Div(
                                      ),
                             html.Div(ContainersTableFunctions.container_table,style={'display':'table-cell'}),
                             html.Div(ContainersTableFunctions.container_table_units,style={'display':'table-cell'}),
-                            html.Button('Add row', id='add-rows-button', n_clicks=0),
+                            html.Button('Add row', id='add-rows-button', n_clicks=0,style={'display':'table-cell'}),
+                            dcc.Checklist(id='allow-insulin',
+                                          options=[{'label':'Allow user-input insulin, BG measurement, temp basal, etc.','value':'allow-insulin'}],
+                                          value=[]),
                             html.Div(ContainersTableFunctions.container_table_fixed,style={'display':'table-cell'}),
                             html.Div(ContainersTableFunctions.container_table_fixed_units,style={'display':'table-cell'}),
                             ],
@@ -502,6 +505,32 @@ def update_units_editable(rows) :
               )
 def update_units_fixed(rows) :
     return ContainersTableFunctions.UpdateUnits(rows)
+
+#
+# Allow "fixed" containers to be edited
+#
+@app.callback([Output('container-table-fixed', 'editable'),
+               Output('container-table-editable','dropdown_conditional'),
+               ],
+              [Input('allow-insulin','value')],
+              )
+def allow_insulin_edits(allow_bool) :
+
+    container_opts = []
+    for opt in ContainersTableFunctions.container_opts :
+        container_opts.append(opt)
+
+    if allow_bool :
+        container_opts += ['InsulinBolus','TempBasal','BGMeasurement']
+
+    conditional = [{'if': {'column_id': 'class',
+                           'filter_query': '{IsBWZ} eq "0"'},
+                    'options': list({'label': i, 'value': i} for i in container_opts),
+                    'clearable':False,
+                    },
+                   ]
+
+    return bool(allow_bool), conditional
 
 app.title = 'Kurt Webpage'
 
