@@ -216,7 +216,7 @@ def tablefToContainers(conts,date) :
             try :
                 iov_1_dt = datetime.datetime.strptime(iov_0_str,'%Y-%m-%d %H:%M:%S')+datetime.timedelta(hours=float(c['duration_hr']))
                 iov_1_str = datetime.datetime.strftime(iov_1_dt,'%Y-%m-%d %H:%M:00')
-                args = iov_0_str,iov_1_str,float(c['magnitude']),float(c['duration_hr']),-999.
+                args = iov_0_str,iov_1_str,float(c['magnitude']),max(float(c['duration_hr']),0.1),-999.
             except (ValueError, TypeError) as e :
                 continue
 

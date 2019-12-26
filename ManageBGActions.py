@@ -345,7 +345,10 @@ def GetBasalSpecialConts_Tablef(pd_basal,start_time_dt64,end_time_dt64,basal_set
 
                 BGEffect += -insulin_sensi*bolus_val*(c['magnitude']/100.-1)
 
-            liver = {'class':'LiverFattyGlucose','duration_hr':c['duration_hr'],'iov_0_str':c['iov_0_str'],'magnitude':BGEffect,'hr':'hr'}
+            duration_hr = round(float(c['duration_hr']),2)
+            duration_hr = max(duration_hr,0.1)
+            BGEffect = round(float(BGEffect),0)
+            liver = {'class':'LiverFattyGlucose','duration_hr':duration_hr,'iov_0_str':c['iov_0_str'],'magnitude':BGEffect,'hr':'hr'}
             fatty_events.append(liver)
 
     for f in fatty_events :
