@@ -96,12 +96,12 @@ def GetDeltaPlots(the_userprofile,containers,start_time_dt64,end_time_dt64) :
         if c.IsLiverFattyGlucose() :
             title = '%s Fatty event (%.2f%%, %d mg/dL)'%(timestr,c.fractionOfBasal,c.BGEffect)
 
-        the_color = {'InsulinBolus'     :['#66E066','#99EB99'],
-                     'Food'             :['#E06666','#EB9999'],
-                     'LiverBasalGlucose':['#FFE066','#FFE066'],
-                     'BasalInsulin'     :['#ADC2FF','#ADC2FF'],
-                     'LiverFattyGlucose':['Orange','Orange'],
-                     'ExerciseEffect'   :['Purple','Purple'],
+        the_color = {'InsulinBolus'     :['rgba(153,235,153,0.8)','rgba(102,224,102,0.8)'], # ['#66E066','#99EB99'],
+                     'Food'             :['rgba(224,102,103,0.8)','rgba(236,154,153,0.8)'],# ['#E06666','#EB9999'],
+                     'LiverBasalGlucose':['rgba(255,224,102,0.8)']*2, # '#FFE066'
+                     'BasalInsulin'     :['rgba(173,194,255,0.8)']*2, # '#ADC2FF'
+                     'LiverFattyGlucose':['rgba(255,165,2,0.8)']*2, #'Orange'
+                     'ExerciseEffect'   :['rgba(128,0,129,0.8)']*2, # 'Purple'
                      }.get(classname)[toggleLightDark[classname]]
         toggleLightDark[classname] = not toggleLightDark[classname]
 

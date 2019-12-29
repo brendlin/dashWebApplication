@@ -252,7 +252,11 @@ def tablefToContainers(conts,date) :
                 continue
 
         # make the container
-        c_out = the_class.FromStringDate(*args)
+        try :
+            c_out = the_class.FromStringDate(*args)
+        except ValueError :
+            print('Error: could not make a container from',c.get('class','NoneClass'),'using these args:',args)
+            pass
 
         try :
             c_out.Ta = float(c['duration_hr'])

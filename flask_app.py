@@ -103,7 +103,7 @@ app.layout = html.Div(
         html.Div([html.Div([dcc.Graph(id='display-tidepool-graph',
                                       #config={'staticPlot':True,},
                                       figure={'layout':{'margin':{'l':60, 'r':20, 't':20, 'b':20},
-                                                        'paper_bgcolor':'LightSteelBlue',
+                                                        'paper_bgcolor':'White','plot_bgcolor':'White',
                                                         'yaxis':{'title':'BG (mg/dL)','range':[30,500]}}},
                                       style={'height': 400,}
                                       ),
@@ -245,8 +245,10 @@ def update_plot(pd_smbg_json,active_profile_json,active_containers_json,show_thi
     fig.update_yaxes(title_text="BG (mg/dL)", row=1, col=1)
     fig.update_yaxes(title_text=u"\u0394"+" BG (mg/dL/hr)", row=2, col=1)
     fig.update_yaxes(range=[30,500], row=1, col=1)
-    fig.update_xaxes(range=[start_time_dt, end_time_dt])
-    fig.update_layout(margin=dict(l=20, r=20, t=20, b=20),paper_bgcolor="LightSteelBlue",)
+    fig.update_yaxes(gridcolor='LightGray',mirror='ticks',showline=True,linecolor='Black', row=1, col=1)
+    fig.update_yaxes(gridcolor='LightGray',mirror='ticks',showline=True,linecolor='Black', row=2, col=1)
+    fig.update_xaxes(range=[start_time_dt, end_time_dt],gridcolor='LightGray',mirror='ticks',showline=True,linecolor='Black')
+    fig.update_layout(margin=dict(l=20, r=20, t=20, b=20),paper_bgcolor="White",plot_bgcolor='White')
     fig.update_layout(showlegend=False)
 
     # Add the cgm
