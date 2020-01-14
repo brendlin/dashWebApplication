@@ -274,6 +274,9 @@ def update_plot(pd_smbg_json,active_profile_json,active_containers_json,show_thi
     active_profile = Settings.TrueUserProfile.fromJson(active_profile_json)
     pd_basal = pd.read_json(pd_basal_json)
 
+    # Add the "good range" bands
+    Utils.AddTargetBands(fig)
+
     # load containers, and check if they line up with the date!
     active_containers_tablef = list(json.loads(c) for c in active_containers_json.split('$$$'))
     for c in active_containers_tablef :
