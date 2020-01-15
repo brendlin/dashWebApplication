@@ -104,7 +104,7 @@ app.layout = html.Div(
                                       #config={'staticPlot':True,},
                                       figure={'layout':{'margin':{'l':60, 'r':20, 't':20, 'b':20},
                                                         'paper_bgcolor':'White','plot_bgcolor':'White',
-                                                        'yaxis':{'title':'BG (mg/dL)','range':[50,300],'linecolor':'Black','mirror':'ticks'},
+                                                        'yaxis':{'title':'BG (mg/dL)','range':[50,300],'linecolor':'Black','mirror':'ticks','hoverformat':'0.0f',},
                                                         'xaxis':{'range':[1,100],'linecolor':'Black','mirror':'ticks'},
                                                         }
                                               },
@@ -250,6 +250,8 @@ def update_plot(pd_smbg_json,active_profile_json,active_containers_json,show_thi
     fig.update_yaxes(range=[50,300], row=1, col=1)
     fig.update_yaxes(gridcolor='LightGray',mirror='ticks',showline=True,linecolor='Black', row=1, col=1)
     fig.update_yaxes(gridcolor='LightGray',mirror='ticks',showline=True,linecolor='Black', row=2, col=1)
+    fig.update_yaxes(hoverformat='0.0f',row=1,col=1)
+    fig.update_yaxes(hoverformat='0.0f',row=2,col=1)
     fig.update_xaxes(gridcolor='LightGray',mirror='ticks',showline=True,linecolor='Black')
     fig.update_layout(margin=dict(l=20, r=20, t=20, b=20),paper_bgcolor="White",plot_bgcolor='White')
     fig.update_layout(showlegend=False)
