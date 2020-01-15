@@ -10,7 +10,7 @@ def ShowDayNotOverview(show_this_day_timestamp,show_overview_timestamp) :
     if thisDayWasPressed :
         if overviewNeverPressed :
             return True
-        if (show_this_day_t > show_overview_t) :
+        if (show_this_day_timestamp > show_overview_timestamp) :
             return True
     
     return False

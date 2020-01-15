@@ -5,6 +5,9 @@ import plotly
 import datetime
 import time
 
+from pandas.plotting import register_matplotlib_converters
+register_matplotlib_converters()
+
 import ManageBGActions
 
 def GetPlotSMBG(pd_smbg,start_time_dt,end_time_dt) :
@@ -28,6 +31,80 @@ def GetPlotSMBG(pd_smbg,start_time_dt,end_time_dt) :
                  }
 
     return smbg_plot
+
+def GetSummaryPlots(pd_smbg,start_time_dt,end_time_dt) :
+
+    plots = []
+
+    # Make a copy with [:]
+    bgs = pd_smbg[(pd.to_datetime(pd_smbg['deviceTime']) > start_time_dt) & (pd.to_datetime(pd_smbg['deviceTime']) < end_time_dt)][:]
+    bgs = bgs.sort_values(by='deviceTime',ascending=True)
+
+    # The "index" needs to be a datetime type, with unit "seconds" for some reason.
+    #bgs.index = pd.to_datetime(bgs['deviceTime'], unit='s')
+    bgs.index = pd.to_datetime(bgs['deviceTime'])
+
+    # 1-week averages
+    avg1 = bgs.resample('7D').mean()
+
+    # 4-week average
+    wk4 = bgs.rolling(window='28D',min_periods=80)
+    avg4 = wk4.mean()['value'].resample('3D').last()
+    rms4 = wk4.std()['value'].resample('3D').last()
+
+    # 17-week average
+    wk17 = bgs.rolling(window='119D',min_periods=200)
+    avg17 = wk17.mean()['value'].resample('3D').last()
+    rms17 = wk17.std()['value'].resample('3D').last()
+
+    conv = 18.01559
+
+    # 17-week average error bars
+    plots.append({'x':list(avg17.index) + list(avg17.index)[::-1],
+                  'y':list(avg17*conv + rms17*conv) + list(avg17*conv - rms17*conv)[::-1],
+                  'type':'scatter','name':'17-wk rolling stdev',
+                  'fill':'tozeroy',
+                  'fillcolor':'rgba(78,82,128,0.5)',
+                  'mode':'lines',
+                  'line':{'width':0},
+                  'legendgroup':'17',
+                  })
+
+    # 4-week average error bars
+    plots.append({'x':list(avg4.index) + list(avg4.index)[::-1],
+                  'y':list(avg4*conv + rms4*conv) + list(avg4*conv - rms4*conv)[::-1],
+                  'type':'scatter','name':'4-wk rolling stdev',
+                  'fill':'tozeroy',
+                  'fillcolor':'rgba(255,165,2,0.5)',
+                  'mode':'lines',
+                  'line':{'width':0},
+                  'legendgroup':'4',
+                  })
+
+    # 17-week average
+    plots.append({'x':avg17.index,'y':avg17*conv,
+                  'type':'scatter','name':'17-wk rolling avg',
+                  'line':{'color':'rgba(78,82,128,1)'},
+                  'legendgroup':'17',
+                  })
+
+    # 4-week average
+    plots.append({'x':avg4.index,'y':avg4*conv,
+                  'type':'scatter','name':'4-wk rolling avg',
+                  'mode':'lines',
+                  'line':{'color':'rgba(173,113,3,1)'},
+                  'legendgroup':'4',
+                  })
+
+    # 1-week average
+    plots.append({'x':avg1.index,'y':avg1['value']*conv,
+                  'type':'scatter','name':'1-wk avg',
+                  'mode':'markers',
+                  'marker':{'color':'Black','size':4},
+                  })
+
+    return plots
+
 
 def GetPlotCGM(pd_cgm,start_time_dt,end_time_dt) :
 
