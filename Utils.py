@@ -2,6 +2,7 @@
 import datetime
 import json
 import plotly.graph_objects as go
+from ColorSchemes import ColorScheme
 
 def ShowDayNotOverview(show_this_day_timestamp,show_overview_timestamp) :
     thisDayWasPressed = (show_this_day_timestamp != None)
@@ -29,11 +30,10 @@ def GetDayBeginningAndEnd_dt(date) :
 
     return start_time_dt,end_time_dt
 
-
 def AddTargetBands(fig,min_yellow=80,min_green=100,max_green=150,max_yellow=180) :
 
-    fill_color_green = "rgba(93, 244, 0, 0.75)"
-    fill_color_yellow = "rgba(240, 244, 0, 0.75)"
+    fill_color_green = ColorScheme.TargetBandColorGreen
+    fill_color_yellow = ColorScheme.TargetBandColorYellow
 
     fig.add_shape(go.layout.Shape(
             type="rect",xref="paper",yref="y",

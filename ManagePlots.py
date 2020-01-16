@@ -9,6 +9,7 @@ from pandas.plotting import register_matplotlib_converters
 register_matplotlib_converters()
 
 import ManageBGActions
+from ColorSchemes import ColorScheme
 
 def GetPlotSMBG(pd_smbg,start_time_dt,end_time_dt) :
 
@@ -64,7 +65,7 @@ def GetSummaryPlots(pd_smbg,start_time_dt,end_time_dt) :
                   'y':list(avg17*conv + rms17*conv) + list(avg17*conv - rms17*conv)[::-1],
                   'type':'scatter','name':'17-wk rolling stdev',
                   'fill':'tozeroy',
-                  'fillcolor':'rgba(78,82,128,0.5)',
+                  'fillcolor':ColorScheme.Avg17ErrorBar,
                   'mode':'lines',
                   'line':{'width':0},
                   'legendgroup':'17',
@@ -75,7 +76,7 @@ def GetSummaryPlots(pd_smbg,start_time_dt,end_time_dt) :
                   'y':list(avg4*conv + rms4*conv) + list(avg4*conv - rms4*conv)[::-1],
                   'type':'scatter','name':'4-wk rolling stdev',
                   'fill':'tozeroy',
-                  'fillcolor':'rgba(255,165,2,0.5)',
+                  'fillcolor':ColorScheme.Avg4ErrorBar,
                   'mode':'lines',
                   'line':{'width':0},
                   'legendgroup':'4',
@@ -84,7 +85,7 @@ def GetSummaryPlots(pd_smbg,start_time_dt,end_time_dt) :
     # 17-week average
     plots.append({'x':avg17.index,'y':avg17*conv,
                   'type':'scatter','name':'17-wk rolling avg',
-                  'line':{'color':'rgba(78,82,128,1)'},
+                  'line':{'color':ColorScheme.Avg17Plot,},
                   'legendgroup':'17',
                   })
 
@@ -92,7 +93,7 @@ def GetSummaryPlots(pd_smbg,start_time_dt,end_time_dt) :
     plots.append({'x':avg4.index,'y':avg4*conv,
                   'type':'scatter','name':'4-wk rolling avg',
                   'mode':'lines',
-                  'line':{'color':'rgba(173,113,3,1)'},
+                  'line':{'color':ColorScheme.Avg4Plot},
                   'legendgroup':'4',
                   })
 
@@ -117,8 +118,8 @@ def GetPlotCGM(pd_cgm,start_time_dt,end_time_dt) :
     cgm_plot = {'x': cgm_inrange['Time_dt'],
                 'y': np.round(cgm_inrange['Glucose']),
                 'type': 'scatter', 'name': 'CGM Readings','mode':'markers',
-                'marker':{'color':'#77B6EA','size':6},
-                'line': {'color':'#77B6EA', 'width':2}
+                'marker':{'color':ColorScheme.CGMData,'size':6},
+                'line': {'color':ColorScheme.CGMData, 'width':2}
                 }
 
     return cgm_plot

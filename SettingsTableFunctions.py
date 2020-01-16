@@ -2,6 +2,7 @@ import sys
 import copy
 from dash_table import DataTable
 from BGModel import Settings
+from ColorSchemes import ColorScheme
 
 #
 # Set up the table columns, and the "vanilla" settings
@@ -25,7 +26,7 @@ for row in defaults_base :
         table_default_base_settings[-1][i] = row[1]
 
 #gradient =     ["#776BFF", "#8168EC", "#8B66D9", "#9663C6", "#A061B3", "#AA5EA0", "#B55C8D", "#BF597A", "#C95767", "#D45555"] # len 10
-gradient = ["#ADC3FF", "#B1BCF2", "#B5B6E5", "#B9B0D8", "#BDAACB", "#C1A4BF", "#C59EB2", "#C998A5", "#CD9298", "#D18C8C"]
+gradient = ColorScheme.TableGradient
 bin_edges = {0:[0] + list(range(45,90,5))+[900], # len 11
              1:[0] + list(range(45,90,5))+[900], # len 11
              2:[0.0, 2.4, 2.8, 3.2, 3.6, 4.0, 4.4, 4.8, 5.2, 5.6, 900], # len 11
@@ -58,7 +59,7 @@ for i,color in enumerate(gradient) :
 tmp1 = DataTable(id='base_settings_table',
                  columns=[{"name": name, "id": str(i-1), "editable": (i!= 0)} for i,name in enumerate(table_columns_base_settings)],
                  data=[],
-                 style_header={'backgroundColor': 'rgb(230, 230, 230)',
+                 style_header={'backgroundColor': ColorScheme.TableBackground,
                                'fontWeight': 'bold'
                                },
                  style_cell={'height': 'auto',

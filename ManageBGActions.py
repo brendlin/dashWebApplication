@@ -3,6 +3,7 @@ from BGModel.BGActionClasses import *
 import datetime
 import time
 import pandas as pd
+from ColorSchemes import ColorScheme
 
 #------------------------------------------------------------------
 def GetBasals(basals,the_userprofile,start_time_dt64,end_time_dt64,input_containers) :
@@ -72,6 +73,22 @@ def GetDeltaPlots(the_userprofile,containers,start_time_dt64,end_time_dt64) :
                        'ExerciseEffect':True,
                        }
 
+    colors = {'InsulinBolus'     :[ColorScheme.InsulinBolus,ColorScheme.InsulinBolusAlt],
+              'Food'             :[ColorScheme.Food,ColorScheme.FoodAlt],
+              'LiverBasalGlucose':[ColorScheme.LiverBasalGlucose]*2,
+              'BasalInsulin'     :[ColorScheme.BasalInsulin     ]*2,
+              'LiverFattyGlucose':[ColorScheme.LiverFattyGlucose]*2,
+              'ExerciseEffect'   :[ColorScheme.ExerciseEffect   ]*2,
+              }
+
+    stackgroups = {'InsulinBolus'     :'Negative',
+                   'BasalInsulin'     :'Negative',
+                   'ExerciseEffect'   :'Negative',
+                   'LiverBasalGlucose':'Positive',
+                   'Food'             :'Positive',
+                   'LiverFattyGlucose':'Positive',
+                   }
+
     for c in reversed(containers) :
 
         classname = c.__class__.__name__
@@ -96,22 +113,10 @@ def GetDeltaPlots(the_userprofile,containers,start_time_dt64,end_time_dt64) :
         if c.IsLiverFattyGlucose() :
             title = '%s Fatty event (%.2f%%, %d mg/dL)'%(timestr,c.fractionOfBasal,c.BGEffect)
 
-        the_color = {'InsulinBolus'     :['rgba(153,235,153,0.8)','rgba(102,224,102,0.8)'], # ['#66E066','#99EB99'],
-                     'Food'             :['rgba(224,102,103,0.8)','rgba(236,154,153,0.8)'],# ['#E06666','#EB9999'],
-                     'LiverBasalGlucose':['rgba(255,224,102,0.8)']*2, # '#FFE066'
-                     'BasalInsulin'     :['rgba(173,194,255,0.8)']*2, # '#ADC2FF'
-                     'LiverFattyGlucose':['rgba(255,165,2,0.8)']*2, #'Orange'
-                     'ExerciseEffect'   :['rgba(128,0,129,0.8)']*2, # 'Purple'
-                     }.get(classname)[toggleLightDark[classname]]
+        the_color = colors.get(classname)[toggleLightDark[classname]]
         toggleLightDark[classname] = not toggleLightDark[classname]
 
-        stackgroup = {'InsulinBolus'     :'Negative',
-                      'BasalInsulin'     :'Negative',
-                      'ExerciseEffect'   :'Negative',
-                      'LiverBasalGlucose':'Positive',
-                      'Food'             :'Positive',
-                      'LiverFattyGlucose':'Positive',
-                      }.get(classname)
+        stackgroup = stackgroups.get(classname)
 
         y_values = np.array(list(c.getBGEffectDerivPerHour(time_ut,the_userprofile) for time_ut in x_times_utc))
 

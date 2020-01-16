@@ -4,6 +4,7 @@ import json
 import datetime
 import Utils
 from BGModel.BGActionClasses import *
+from ColorSchemes import ColorScheme
 
 columns = [['IsBWZ','IsBWZ'],
            ['class','Event type'],
@@ -20,15 +21,15 @@ height='35px'
 # Food: start time, ta, Magnitude, unit
 # fatty glucose: start time (according to temp basal), duration (according to temp basal), (magnitude) percent (according to temp basal) unit (percent)
 
-style_colors = [{'if': {'filter_query':'{class} eq "BasalInsulin"'},'color':'Blue'},
-                {'if': {'filter_query':'{class} eq "ExerciseEffect"'},'color':'#00c1ff'},
-                {'if': {'filter_query':'{class} eq "LiverFattyGlucose"'},'color':'Orange'},
+style_colors = [{'if': {'filter_query':'{class} eq "BasalInsulin"'},'color':ColorScheme.BasalInsulinTxt},
+                {'if': {'filter_query':'{class} eq "ExerciseEffect"'},'color':ColorScheme.ExerciseEffectTxt},
+                {'if': {'filter_query':'{class} eq "LiverFattyGlucose"'},'color':ColorScheme.LiverFattyGlucoseTxt},
                 {'if': {'filter_query':'{class} eq "BGMeasurement"'},'color':'Gray'},
                 {'if': {'filter_query':'{class} eq "TempBasal"'},'color':'Gray'},
                 {'if': {'filter_query':'{class} eq "Suspend"'},'color':'Gray'},
-                {'if': {'filter_query':'{class} eq "LiverBasalGlucose"'},'color':'#E1C55B'},
-                {'if': {'filter_query':'{class} eq "InsulinBolus"'},'color':'Green'},
-                {'if': {'filter_query':'{class} eq "Food"'},'color':'Red'},
+                {'if': {'filter_query':'{class} eq "LiverBasalGlucose"'},'color':ColorScheme.LiverBasalGlucoseTxt},
+                {'if': {'filter_query':'{class} eq "InsulinBolus"'},'color':ColorScheme.InsulinBolusTxt},
+                {'if': {'filter_query':'{class} eq "Food"'},'color':ColorScheme.FoodTxt},
                 ]
 
 container_table = DataTable(id='container-table-editable',
@@ -37,7 +38,7 @@ container_table = DataTable(id='container-table-editable',
                             editable=True,
                             # row_deletable=True,
                             # hide IsBWZ, which you need to see if it should be editable
-                            style_cell={'height': height},
+                            style_cell={'height': height,'fontWeight':'bold'},
                             style_cell_conditional=[{'if': {'column_id': 'IsBWZ'},'display': 'none'},
                                                     {'if': {'column_id': 'class'},'textAlign': 'left'},
                                                     {'if': {'column_id': 'iov_0_str'},'textAlign': 'left'},
@@ -56,7 +57,7 @@ container_table_fixed = DataTable(id='container-table-fixed',
                                   editable=False,
                                   # row_deletable=True,
                                   # hide IsBWZ, which you need to see if it should be editable
-                                  style_cell={'height': height},
+                                  style_cell={'height': height,'fontWeight':'bold'},
                                   style_cell_conditional=[{'if': {'column_id': 'IsBWZ'},'display': 'none'},
                                                           {'if': {'column_id': 'class'},'textAlign': 'left'},
                                                           {'if': {'column_id': 'iov_0_str'},'textAlign': 'left'},
@@ -77,7 +78,7 @@ container_table_fixed = DataTable(id='container-table-fixed',
 container_table_units = DataTable(id='container-table-editable-units',
                                   columns=[{'name':'class','id':'class'},{'name':'', 'id':'unit'}],
                                   data=[],
-                                  style_cell={'height': height,'border_left':'0px','textAlign':'left'},
+                                  style_cell={'height': height,'border_left':'0px','textAlign':'left','fontWeight':'bold'},
                                   style_cell_conditional=[{'if': {'column_id': 'class'},'display': 'none'},],
                                   style_data_conditional=style_colors,
                                   )
@@ -85,7 +86,7 @@ container_table_units = DataTable(id='container-table-editable-units',
 container_table_fixed_units = DataTable(id='container-table-fixed-units',
                                         columns=[{'name':'class','id':'class'},{'name':'', 'id':'unit'}],
                                         data=[],
-                                        style_cell={'height': height,'border_left':'0px','textAlign':'left'},
+                                        style_cell={'height': height,'border_left':'0px','textAlign':'left','fontWeight':'bold'},
                                         style_cell_conditional=[{'if': {'column_id': 'class'},'display': 'none'},],
                                         style_data_conditional=style_colors,
                                         )

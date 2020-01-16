@@ -28,6 +28,7 @@ import SettingsTableFunctions
 import ContainersTableFunctions
 import ManageBGActions
 import Utils
+from ColorSchemes import ColorScheme
 
 # BG Classes
 from BGModel import BGActionClasses
@@ -268,7 +269,7 @@ def update_plot(pd_smbg_json,active_profile_json,active_containers_json,show_thi
         for plot in plots :
             fig.append_trace(plot,1,1)
         fig.update_layout(showlegend=True)
-        fig.update_layout(legend=dict(x=0, y=0,bgcolor='rgba(0,0,0,0)',))
+        fig.update_layout(legend=dict(x=0, y=0,bgcolor=ColorScheme.Transparent,))
         return fig
 
 
