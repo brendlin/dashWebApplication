@@ -5,9 +5,6 @@ import plotly
 import datetime
 import time
 
-from pandas.plotting import register_matplotlib_converters
-register_matplotlib_converters()
-
 import ManageBGActions
 from ColorSchemes import ColorScheme
 
