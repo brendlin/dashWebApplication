@@ -130,7 +130,7 @@ def UpdateContainerTable(the_containers_json,date) :
     if out_table_fixed :
         out_table_fixed[0]['hidden'] = hidden
 
-    add_an_event['iov_0_str'] = ' '.join( (the_date.replace('BWZ Inputs','')+' 00:00').split() )
+    add_an_event['iov_0_str'] = ' '.join( (the_date.replace('BWZ Inputs','')+' 04:00').split() )
     out_table_editable.append(add_an_event)
 
     def sorter(x) :
@@ -187,9 +187,14 @@ def tablefToContainers(conts,date) :
         # Get iov_1 in a way that is compatible with the table
         if c['class'] == 'BGMeasurement' :
             try :
-                args = iov_0_str,conts[i+1]['iov_0_str']+':00',float(c['magnitude'])
+                starttime,endtime = iov_0_str,conts[i+1]['iov_0_str']+':00'
             except IndexError :
-                args = iov_0_str,end_time_dt.strftime('%Y-%m-%d %H:%M:00'),float(c['magnitude'])
+                starttime,endtime = iov_0_str,end_time_dt.strftime('%Y-%m-%d %H:%M:00')
+            try :
+                mag = float(c['magnitude'])
+            except ValueError :
+                continue
+            args = starttime,endtime,mag
 
         elif c['class'] in ['TempBasal','ExerciseEffect'] :
             try :

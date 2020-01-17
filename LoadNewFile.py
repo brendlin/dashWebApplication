@@ -39,11 +39,6 @@ def process_input_file(contents, filename):
 def LoadNewFile(contents, name) :
     text_outputs = []
 
-    min_date = datetime.datetime(1995, 8, 5)
-    max_date = datetime.datetime(2017, 9, 19)
-    month = datetime.datetime(2017, 8, 5)
-    day = str(datetime.datetime(2017, 8, 25, 23, 59, 59))
-
     generic_profile = ['1970-01-01T00:00:01',ManageSettings.getGenericUserProfile()]
     generic_profile_bundled = '$$$'.join([generic_profile[0],generic_profile[1].toJson()])
 
@@ -57,7 +52,7 @@ def LoadNewFile(contents, name) :
         status, pd_all = process_input_file(contents, name)
 
         if 'error' in status :
-            return status,None,None,generic_profile_bundled,min_date,max_date,month,day,None,None,None
+            return status,None,None,generic_profile_bundled,None,None,None
 
     # print('updating global_smbg',file=sys.stdout)
 
@@ -109,12 +104,6 @@ def LoadNewFile(contents, name) :
     columns_to_save = ['deviceTime','deviceTime_end_fixed','percent_fixed']
     pd_basal = pd_tmp2[(pd_tmp2['deliveryType'] == 'temp') | (pd_tmp2['deliveryType'] == 'suspend')][columns_to_save]
 
-    # dates!
-    min_date = min(np.array(pd_smbg['deviceTime'],dtype='datetime64'))
-    max_date = max(np.array(pd_smbg['deviceTime'],dtype='datetime64'))
-    month    = max(np.array(pd_smbg['deviceTime'],dtype='datetime64'))
-    day      = max(np.array(pd_smbg['deviceTime'],dtype='datetime64'))
-
     # These are classes
     # all_profiles is a list of [date,profile]
     all_profiles, settings_basal = ManageSettings.LoadFromJsonData(pd_all)
@@ -124,7 +113,7 @@ def LoadNewFile(contents, name) :
     # ###Name1$$$Profile1###Name2$$$Profile2 ... etc.
     profiles_bundled = '###'.join(list('$$$'.join([profile[0],profile[1].toJson()]) for profile in all_profiles))
 
-    return status, settings_basal.toJson(), profiles_bundled, last_profile_bundled, min_date, max_date, month, day, pd_containers.to_json(), pd_smbg.to_json(), pd_basal.to_json()
+    return status, settings_basal.toJson(), profiles_bundled, last_profile_bundled, pd_containers.to_json(), pd_smbg.to_json(), pd_basal.to_json()
 
 #
 # For the upload callback (uses process_input_file)

@@ -37,6 +37,10 @@ from BGModel import Settings
 # needed for callbacks
 from dash.dependencies import Input, Output, State
 
+# These should be const
+sandbox_date     = '1970-01-02T04:00:00'
+sandbox_date_end = '1970-01-03T10:00:00'
+
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
 # for deployment, pass app.server (which is the actual flask app) to WSGI etc
@@ -88,16 +92,25 @@ app.layout = html.Div(
         html.Div(id='upload-cgm-panda'      ,style={'display': 'none'},children=None), # This stores the historical basal schedules
         html.Div(id='upload-basal-panda'    ,style={'display': 'none'},children=None),
 
-        html.Div(children=['''Pick a date: ''',
+        html.Div(children=[dcc.Dropdown(id='analysis-mode-dropdown',
+                                        options=[{'label':'Overview Mode','value':'data-overview'},
+                                                 {'label':'Daily Analysis Mode','value':'daily-analysis'},
+                                                 {'label':'Sandbox Mode','value':'sandbox'},
+                                                 ],
+                                        value='data-overview',
+                                        style={'width':'250px','display': 'inline-block','verticalAlign':'middle'},
+                                        searchable=False,
+                                        ),
+                           html.Div(style={'display':'inline-block','width':'10px'}),
+                           '''Pick a date: ''',
                            dcc.DatePickerSingle(id='my-date-picker-single',
-                                                min_date_allowed=datetime.datetime(1995, 8, 5),
-                                                max_date_allowed=datetime.datetime(2017, 9, 19),
-                                                initial_visible_month=datetime.datetime(2017, 8, 5),
-                                                date=str(datetime.datetime(2017, 8, 25, 23, 59, 59))
+                                                min_date_allowed=sandbox_date,
+                                                max_date_allowed=sandbox_date,
+                                                initial_visible_month=sandbox_date,
+                                                date=sandbox_date,
                                                 ),
-                           html.Button('Show this day', id='show-this-day',className='button-primary'),
-                           html.Button('Back to overview', id='overview-button'),
-                           ]
+                           ],
+                 style={'display': 'inline-block','verticalAlign':'middle'},
                  ),
 
 
@@ -170,10 +183,6 @@ app.layout = html.Div(
                Output('all-basal-schedules', 'children'),
                Output('profiles-from-data', 'children'),
                Output('bwz-profile','children'),
-               Output('my-date-picker-single', 'min_date_allowed'),
-               Output('my-date-picker-single', 'max_date_allowed'),
-               Output('my-date-picker-single', 'initial_visible_month'),
-               Output('my-date-picker-single', 'date'),
                Output('upload-container-panda', 'children'),
                Output('upload-smbg-panda','children'),
                Output('upload-basal-panda','children'),
@@ -183,6 +192,43 @@ app.layout = html.Div(
 def update_file(contents, name):
 
     return LoadNewFile.LoadNewFile(contents, name)
+
+#
+# Change date-picker (based on upload-smbg-panda)
+#
+@app.callback([Output('my-date-picker-single', 'min_date_allowed'),
+               Output('my-date-picker-single', 'max_date_allowed'),
+               Output('my-date-picker-single', 'initial_visible_month'),
+               Output('my-date-picker-single', 'date'),
+               Output('my-date-picker-single', 'disabled'),
+               ],
+              [Input('upload-smbg-panda','children'),
+               Input('analysis-mode-dropdown','value'),
+               ],
+              [State('my-date-picker-single', 'min_date_allowed'),
+               State('my-date-picker-single', 'max_date_allowed'),
+               State('my-date-picker-single', 'initial_visible_month'),
+               State('my-date-picker-single', 'date'),
+               ]
+              )
+def update_date_picker(pd_smbg_json,analysis_mode,min_date_old,max_date_old,month_old,date_old):
+
+    if (not pd_smbg_json) or (analysis_mode == 'sandbox') :
+        return min_date_old,max_date_old,month_old,date_old,True
+
+    pd_smbg = pd.read_json(pd_smbg_json)
+
+    # dates!
+    np_smbg = np.array(pd_smbg['deviceTime'],dtype='datetime64')
+
+    min_date = min(np_smbg)
+    max_date = max(np_smbg)
+    month    = max_date
+    day      = max_date
+
+    disabled = (analysis_mode != 'daily-analysis')
+
+    return min_date,max_date,month,day,disabled
 
 #
 # Upload callback (Libre)
@@ -202,15 +248,15 @@ def update_file(contents, name):
               [Input('upload-smbg-panda', 'children'),
                Input('active-profile', 'children'),
                Input('active-containers','children'),
-               Input('show-this-day','n_clicks_timestamp'),
-               Input('overview-button','n_clicks_timestamp')],
-              [State('my-date-picker-single', 'date'),
-               State('all-basal-schedules','children'),
+               Input('analysis-mode-dropdown','value'),
+               Input('my-date-picker-single', 'date'),
+               ],
+              [State('all-basal-schedules','children'),
                State('upload-container-panda','children'),
                State('upload-cgm-panda','children'),
                State('upload-basal-panda','children'),
                ])
-def update_plot(pd_smbg_json,active_profile_json,active_containers_json,show_this_day_t,show_overview_t,date,basals_json,pd_cont_json,pd_cgm_json,pd_basal_json):
+def update_plot(pd_smbg_json,active_profile_json,active_containers_json,analysis_mode,date,basals_json,pd_cont_json,pd_cgm_json,pd_basal_json):
 
     #print('basals_json',basals_json)
     #print('active_profile_json',active_profile_json)
@@ -222,22 +268,28 @@ def update_plot(pd_smbg_json,active_profile_json,active_containers_json,show_thi
 
     pd_smbg = pd.read_json(pd_smbg_json)
 
-    doDayPlot = Utils.ShowDayNotOverview(show_this_day_t,show_overview_t)
+    doDayPlot = (analysis_mode == 'daily-analysis')
+    doSandbox = (analysis_mode == 'sandbox')
+    doOverview = (analysis_mode == 'data-overview')
 
     # some more sanity guards:
     if (not pd_cont_json) :
         doDayPlot = False
-
-    doOverview = not doDayPlot
+        doOverview = not doSandbox
 
     if doOverview :
         fig = plotly.subplots.make_subplots(rows=1,cols=1,shared_xaxes=True)
-    if doDayPlot :
+    if doDayPlot or doSandbox :
         fig = plotly.subplots.make_subplots(rows=2, cols=1,shared_xaxes=True,vertical_spacing=0.02)
+
 
     # Get the right timing
     if doDayPlot :
         start_time_dt,end_time_dt = Utils.GetDayBeginningAndEnd_dt(date)
+
+    elif doSandbox :
+        start_time_dt = datetime.datetime.strptime(sandbox_date,'%Y-%m-%dT%H:%M:%S')
+        end_time_dt   = datetime.datetime.strptime(sandbox_date_end,'%Y-%m-%dT%H:%M:%S')
 
     else :
         start_time = pd_smbg['deviceTime'].iloc[-1]
@@ -264,7 +316,7 @@ def update_plot(pd_smbg_json,active_profile_json,active_containers_json,show_thi
         cgm_plot = ManagePlots.GetPlotCGM(pd_cgm,start_time_dt,end_time_dt)
         fig.append_trace(cgm_plot,1,1)
 
-    if not doDayPlot :
+    if doOverview :
         plots = ManagePlots.GetSummaryPlots(pd_smbg,start_time_dt,end_time_dt)
         for plot in plots :
             fig.append_trace(plot,1,1)
@@ -274,8 +326,9 @@ def update_plot(pd_smbg_json,active_profile_json,active_containers_json,show_thi
 
 
     # Add the smbg plot
-    smbg_plot = ManagePlots.GetPlotSMBG(pd_smbg,start_time_dt,end_time_dt)
-    fig.append_trace(smbg_plot,1,1)
+    if doDayPlot :
+        smbg_plot = ManagePlots.GetPlotSMBG(pd_smbg,start_time_dt,end_time_dt)
+        fig.append_trace(smbg_plot,1,1)
 
     fig.update_xaxes(range=[start_time_dt, end_time_dt])
     fig.update_yaxes(range=[30,350], row=1, col=1)
@@ -319,9 +372,10 @@ def update_plot(pd_smbg_json,active_profile_json,active_containers_json,show_thi
                Output('containers-dropdown', 'value'),
                Output('bwz-containers', 'children'),
                ],
-              [Input('show-this-day','n_clicks_timestamp'),
-               Input('overview-button','n_clicks_timestamp')],
-              [State('my-date-picker-single', 'date'),
+              [Input('analysis-mode-dropdown','value'),
+               Input('my-date-picker-single', 'date'),
+               ],
+              [
                State('upload-smbg-panda', 'children'),
                State('all-basal-schedules','children'),
                State('upload-container-panda','children'),
@@ -330,9 +384,9 @@ def update_plot(pd_smbg_json,active_profile_json,active_containers_json,show_thi
                State('containers-dropdown', 'options'),
                State('containers-dropdown', 'value'),
                ])
-def make_day_containers(show_this_day_t,show_overview_t,date,pd_smbg_json,basals_json,pd_cont_json,pd_basal_json,bwz_profile_json,options,value):
+def make_day_containers(analysis_mode,date,pd_smbg_json,basals_json,pd_cont_json,pd_basal_json,bwz_profile_json,options,value):
 
-    loadDayContainers = Utils.ShowDayNotOverview(show_this_day_t,show_overview_t)
+    loadDayContainers = analysis_mode in ['daily-analysis','sandbox']
 
     if not loadDayContainers :
         return [], None, ''
@@ -343,9 +397,15 @@ def make_day_containers(show_this_day_t,show_overview_t,date,pd_smbg_json,basals
     active_profile = Settings.TrueUserProfile.fromJson(bwz_profile_json.split('$$$')[1])
     pd_basal = pd.read_json(pd_basal_json)
 
-    start_time_dt,end_time_dt = Utils.GetDayBeginningAndEnd_dt(date)
+    tmp_date = sandbox_date if (analysis_mode == 'sandbox') else date
+    start_time_dt,end_time_dt = Utils.GetDayBeginningAndEnd_dt(tmp_date)
 
     bwz_conts_Tablef = ManageBGActions.GetContainers_Tablef(pd_smbg,pd_cont,basals,active_profile,start_time_dt,end_time_dt,pd_basal)
+
+    # sandbox mode: Add a BG measurement at the beginning so that the plot populates.
+    if analysis_mode == 'sandbox' and len(bwz_conts_Tablef) == 2 :
+        bwz_conts_Tablef.append({'class':'BGMeasurement','magnitude':115,'hr':'hr','duration_hr':'-',
+                                 'iov_0_str':ManageBGActions.FormatTimeString(sandbox_date)})
 
     the_time = start_time_dt.strftime('%Y-%m-%d')
     the_name = '%s BWZ Inputs'%(the_time)
@@ -487,8 +547,9 @@ def update_active_profile(table,ta,tf):
                State('container-table-fixed', 'data'),
                State('container-table-fixed', 'columns'),
                State('my-date-picker-single', 'date'),
+               State('analysis-mode-dropdown', 'value'),
                ])
-def make_container_tables(n_clicks, containers_selected_from_dropdown, rows_ed, columns_ed, rows_fix, columns_fix, date):
+def make_container_tables(n_clicks, containers_selected_from_dropdown, rows_ed, columns_ed, rows_fix, columns_fix, date, analysis_mode):
 
     if not dash.callback_context.triggered:
         raise PreventUpdate
@@ -500,8 +561,10 @@ def make_container_tables(n_clicks, containers_selected_from_dropdown, rows_ed, 
         next['IsBWZ'] = 0
         if 'YYYY' in rows_ed[-1]['iov_0_str'] :
             next['iov_0_str'] = rows_ed[-1]['iov_0_str']
+        elif analysis_mode == 'sandbox' :
+            next['iov_0_str'] = sandbox_date.split(' ')[0].split('T')[0]+' 04:00'
         else :
-            next['iov_0_str'] = date.split(' ')[0].split('T')[0]+' 00:00'
+            next['iov_0_str'] = date.split(' ')[0].split('T')[0]+' 04:00'
         next['hr'] = 'hr'
         rows_ed.append(next)
         return rows_ed, rows_fix
