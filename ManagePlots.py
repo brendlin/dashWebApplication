@@ -42,8 +42,9 @@ def GetSummaryPlots(pd_smbg,start_time_dt,end_time_dt) :
     #bgs.index = pd.to_datetime(bgs['deviceTime'], unit='s')
     bgs.index = pd.to_datetime(bgs['deviceTime'])
 
-    # 1-week averages
-    avg1 = bgs.resample('7D').mean()
+    # 1-week averages (starting Sunday 11:59:59 apparently)
+    # The label is misleading, so we offset it by one day to correspond with Monday labeling.
+    avg1 = bgs.resample('W-SUN',label='left',loffset='1D').mean()
 
     # 4-week average
     wk4 = bgs.rolling(window='28D',min_periods=80)
