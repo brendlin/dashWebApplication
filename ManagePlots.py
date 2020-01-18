@@ -4,9 +4,15 @@ import pandas as pd
 import plotly
 import datetime
 import time
+import json
 
-import ManageBGActions
+from dash.exceptions import PreventUpdate
+
+import Utils
+from BGModel import Settings
 from ColorSchemes import ColorScheme
+import ManageBGActions
+import ContainersTableFunctions
 
 def GetPlotSMBG(pd_smbg,start_time_dt,end_time_dt) :
 
@@ -141,3 +147,102 @@ def GetAnalysisPlots(pd_smbg,pd_cont,basals,containers,the_userprofile,start_tim
         return_plots[1].append(plot)
 
     return return_plots
+
+
+def UpdateLayout(fig) :
+
+    fig.update_yaxes(title_text="BG (mg/dL)", row=1, col=1)
+    fig.update_yaxes(title_text=u"\u0394"+" BG (mg/dL/hr)", row=2, col=1)
+    fig.update_yaxes(range=[50,300], row=1, col=1)
+    fig.update_yaxes(gridcolor='LightGray',mirror='ticks',showline=True,linecolor='Black', row=1, col=1)
+    fig.update_yaxes(gridcolor='LightGray',mirror='ticks',showline=True,linecolor='Black', row=2, col=1)
+    fig.update_yaxes(hoverformat='0.0f',row=1,col=1)
+    fig.update_yaxes(hoverformat='0.0f',row=2,col=1)
+    fig.update_xaxes(gridcolor='LightGray',mirror='ticks',showline=True,linecolor='Black')
+    fig.update_layout(margin=dict(l=20, r=20, t=27, b=20),paper_bgcolor="White",plot_bgcolor='White')
+    fig.update_layout(showlegend=False)
+
+    return
+
+def doOverview(pd_smbg_json,active_profile_json,active_containers_json,analysis_mode,date,basals_json,pd_cont_json,pd_cgm_json,pd_basal_json) :
+
+    pd_smbg = pd.read_json(pd_smbg_json)
+
+    fig = plotly.subplots.make_subplots(rows=1,cols=1,shared_xaxes=True)
+    UpdateLayout(fig)
+
+    start_time = pd_smbg['deviceTime'].iloc[-1]
+    end_time   = pd_smbg['deviceTime'].iloc[0]
+
+    start_time_dt = datetime.datetime.strptime(start_time,'%Y-%m-%dT%H:%M:%S')
+    end_time_dt   = datetime.datetime.strptime(end_time  ,'%Y-%m-%dT%H:%M:%S')
+
+    plots = GetSummaryPlots(pd_smbg,start_time_dt,end_time_dt)
+
+    for plot in plots :
+        fig.append_trace(plot,1,1)
+    fig.update_layout(showlegend=True)
+    fig.update_layout(legend=dict(x=0, y=0,bgcolor=ColorScheme.Transparent,))
+
+    return fig
+
+
+def doDayPlot(pd_smbg_json,active_profile_json,active_containers_json,analysis_mode,date,basals_json,pd_cont_json,pd_cgm_json,pd_basal_json,isSandbox = False) :
+
+    pd_smbg = pd.read_json(pd_smbg_json)
+
+    if isSandbox :
+        start_time_dt = datetime.datetime.strptime(Utils.sandbox_date,'%Y-%m-%dT%H:%M:%S')
+        end_time_dt   = datetime.datetime.strptime(Utils.sandbox_date_end,'%Y-%m-%dT%H:%M:%S')
+
+    else :
+        start_time_dt,end_time_dt = Utils.GetDayBeginningAndEnd_dt(date)
+
+    fig = plotly.subplots.make_subplots(rows=2, cols=1,shared_xaxes=True,vertical_spacing=0.02)
+    UpdateLayout(fig)
+    fig.update_xaxes(range=[start_time_dt, end_time_dt])
+    fig.update_yaxes(range=[30,350], row=1, col=1)
+    #fig.update_layout(transition={'duration': 500})
+
+    # Add the cgm
+    if pd_cgm_json :
+        pd_cgm = pd.read_json(pd_cgm_json)
+
+        cgm_plot = GetPlotCGM(pd_cgm,start_time_dt,end_time_dt)
+        fig.append_trace(cgm_plot,1,1)
+
+    # Add the smbg plot
+    if pd_smbg_json :
+        smbg_plot = GetPlotSMBG(pd_smbg,start_time_dt,end_time_dt)
+        fig.append_trace(smbg_plot,1,1)
+
+    # After this point, we assume we are doing the full analysis.
+    pd_cont = pd.read_json(pd_cont_json)
+    basals = Settings.UserSetting.fromJson(basals_json)
+    active_profile = Settings.TrueUserProfile.fromJson(active_profile_json)
+    pd_basal = pd.read_json(pd_basal_json)
+
+    # Add the "good range" bands
+    Utils.AddTargetBands(fig)
+
+    # load containers, and check if they line up with the date!
+    active_containers_tablef = list(json.loads(c) for c in active_containers_json.split('$$$'))
+    for c in active_containers_tablef :
+        if (c.get('day_tag',None) and start_time_dt.strftime('%Y-%m-%d') not in c['day_tag']) :
+            #print('skipping this update')
+            raise PreventUpdate
+    active_containers = ContainersTableFunctions.tablefToContainers(active_containers_tablef,date)
+    # we already made fatty events, so do not re-make them here!
+    active_containers += ManageBGActions.GetBasals(basals,active_profile,start_time_dt,end_time_dt,active_containers)
+
+    for c in active_containers :
+        if c.IsExercise() :
+            c.LoadContainers(active_containers)
+
+    plots = GetAnalysisPlots(pd_smbg,pd_cont,basals,active_containers,active_profile,start_time_dt,end_time_dt,pd_basal)
+    for plot in plots[0] :
+        fig.append_trace(plot,1,1)
+    for plot in plots[1] :
+        fig.append_trace(plot,2,1)
+
+    return fig

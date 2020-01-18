@@ -4,17 +4,9 @@ import json
 import plotly.graph_objects as go
 from ColorSchemes import ColorScheme
 
-def ShowDayNotOverview(show_this_day_timestamp,show_overview_timestamp) :
-    thisDayWasPressed = (show_this_day_timestamp != None)
-    overviewNeverPressed = (show_overview_timestamp == None)
-
-    if thisDayWasPressed :
-        if overviewNeverPressed :
-            return True
-        if (show_this_day_timestamp > show_overview_timestamp) :
-            return True
-    
-    return False
+# These should be kept const
+sandbox_date     = '1970-01-02T04:00:00'
+sandbox_date_end = '1970-01-03T10:00:00'
 
 def GetDayBeginningAndEnd_dt(date) :
 
