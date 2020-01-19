@@ -7,6 +7,7 @@ import time
 import json
 
 from dash.exceptions import PreventUpdate
+import plotly.graph_objects as go
 
 import Utils
 from BGModel import Settings
@@ -207,14 +208,25 @@ def doCGMAnalysis(pd_smbg_json,active_profile_json,active_containers_json,analys
     pd_merged = pd.merge_asof(pd_smbg,pd_cgm,on='deviceTime_dt',tolerance=pd.Timedelta('15m'))
     pd_merged = pd_merged[pd_merged['Glucose'].notnull()]
 
-    fig = plotly.subplots.make_subplots(rows=1,cols=1)
+    fig = plotly.subplots.make_subplots(rows=2,cols=2,specs=[[{"rowspan": 2},{}],[None,{}]],)
     UpdateLayout(fig)
-    fig.update_xaxes(range=[30,350], row=1, col=1, nticks=7)
+    fig.update_layout(legend=dict(x=0, y=1,bgcolor=ColorScheme.Transparent,))
+    fig.update_layout(margin=dict(l=20, r=20, t=27, b=20))
+    fig.update_layout(showlegend=True)
+
+    # Row 1, column 1
+    fig.update_xaxes(range=[30,350], row=1, col=1, nticks=7, domain=[0,0.5])
     fig.update_yaxes(range=[30,350], row=1, col=1)
     fig.update_yaxes(title_text="CGM BG (mg/dL)", row=1, col=1, gridcolor='White')
     fig.update_xaxes(title_text="Capillary BG (mg/dL)", row=1, col=1, gridcolor='White')
-    fig.update_layout(margin=dict(l=20, r=300, t=27, b=20))
-    fig.update_layout(showlegend=True)
+
+    # Row 1, column 2
+    fig.update_xaxes(row=1, col=2, gridcolor='White',range=[-1,1])
+    fig.update_yaxes(row=1, col=2, gridcolor='White',linecolor='Black',mirror='ticks',rangemode='tozero')
+
+    # Row 2, column 2
+    fig.update_xaxes(title_text="CGM-Capillary", row=2, col=2, gridcolor='White', range=[-1,1],)
+    fig.update_yaxes(row=2, col=2, gridcolor='White',linecolor='Black',mirror='ticks',rangemode='tozero',type='log')
 
     fig.append_trace({'x':[30,350],'y':[30,350],
                       'name':'y = x',
@@ -240,6 +252,69 @@ def doCGMAnalysis(pd_smbg_json,active_profile_json,active_containers_json,analys
                       'mode':'markers',
                       'marker':{'color':'Black','size':4},
                       },1,1)
+
+    diffs = list((cgm - fing)/fing)
+
+    # Histogram (built-in)
+    # fig.append_trace(go.Histogram(x= diffs, autobinx=False,
+    #                               xbins=dict(start=-1,end=1,size=0.1),
+    #                               marker={'color':'LightGray'}),1,2)
+
+    # Histogram (by hand)
+    xbin_edges = np.linspace(-1, 1, num=20+1)
+    bin_centers = xbin_edges[:-1] + np.diff(xbin_edges) / 2
+    shape = (len(xbin_edges)+1,)
+    sumw = np.zeros(shape)
+
+    for i in range(len(diffs)) :
+        xbin = np.searchsorted(xbin_edges,diffs[i],side='right')
+        sumw[xbin] += 1
+
+    mard_plot = {'x':bin_centers,'y':sumw[1:-1],
+                 'error_y':dict(type='data', # value of error bar given in data coordinates
+                                array=np.sqrt(sumw[1:-1]),
+                                visible=True),
+                 'type':'scatter','name':'Data',
+                 'mode':'markers',
+                 'marker':{'color':'Black','size':4},
+                 'showlegend':False,
+                 }
+
+    sig = np.std(diffs)
+    mu = np.mean(diffs)
+
+    def gaussian(x, mu, sig):
+        return (1/(sig*np.sqrt(2*np.pi))) * np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
+
+    gaus_func_x = np.linspace(-1, 1, num=100+1) # 5 times more points
+    gaus_func_y = gaussian(gaus_func_x,mu,sig)
+    gaus_func_y = 5*gaus_func_y*(len(diffs)/sum(gaus_func_y)) # compensate for 5x more points
+
+    data = pd.DataFrame()
+    data['x'] = gaus_func_x
+    data['y'] = gaus_func_y
+
+    stopAt = 0.5
+    gaus_plot = {'x':data[data['y'] > stopAt]['x'],'y':data[data['y'] > stopAt]['y'],
+                 'type':'scatter',
+                 'mode':'lines',
+                 'line':{'width':1,'color':'Blue'},
+                 'showlegend':False,
+                 #'line_shape':'spline',
+                 }
+
+    # Row 1 Column 2
+    fig.append_trace(mard_plot,1,2)
+    fig.append_trace(gaus_plot,1,2)
+    fig.update_layout(annotations=[go.layout.Annotation(x=0.95,y=0.95,xref="paper",yref="paper",
+                                                        text="Mean: %.2f"%(mu),showarrow=False),
+                                   go.layout.Annotation(x=0.95,y=0.90,xref="paper",yref="paper",
+                                                        text="Stdev: %.2f"%(sig),showarrow=False),
+                                   ])
+
+    # Row 2 Column 2
+    fig.append_trace(mard_plot,2,2)
+    fig.append_trace(gaus_plot,2,2)
 
     return fig
 
