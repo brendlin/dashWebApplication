@@ -92,6 +92,7 @@ app.layout = html.Div(
                                         options=[{'label':'Overview Mode','value':'data-overview'},
                                                  {'label':'Daily Analysis Mode','value':'daily-analysis'},
                                                  {'label':'Sandbox Mode','value':'sandbox'},
+                                                 {'label':'CGM Performance','value':'cgm-plot'},
                                                  ],
                                         value='data-overview',
                                         style={'width':'250px','display': 'inline-block','verticalAlign':'middle'},
@@ -267,6 +268,9 @@ def update_plot(pd_smbg_json,active_profile_json,active_containers_json,analysis
 
     if (analysis_mode == 'sandbox') :
         return ManagePlots.doDayPlot(pd_smbg_json,active_profile_json,active_containers_json,analysis_mode,date,basals_json,pd_cont_json,pd_cgm_json,pd_basal_json,isSandbox=True)
+
+    if (analysis_mode == 'cgm-plot') :
+        return ManagePlots.doCGMAnalysis(pd_smbg_json,active_profile_json,active_containers_json,analysis_mode,date,basals_json,pd_cont_json,pd_cgm_json,pd_basal_json)
 
     return {}
 

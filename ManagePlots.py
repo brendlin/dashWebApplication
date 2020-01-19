@@ -186,6 +186,61 @@ def doOverview(pd_smbg_json,active_profile_json,active_containers_json,analysis_
 
     return fig
 
+def doCGMAnalysis(pd_smbg_json,active_profile_json,active_containers_json,analysis_mode,date,basals_json,pd_cont_json,pd_cgm_json,pd_basal_json) :
+
+    if (not pd_cgm_json) or (not pd_smbg_json) :
+        return {}
+
+    pd_smbg = pd.read_json(pd_smbg_json)
+    pd_smbg = pd_smbg[pd_smbg['value'] < (350/18.01559)]
+    pd_smbg = pd_smbg[pd_smbg['value'] > ( 40/18.01559)]
+
+    pd_cgm = pd.read_json(pd_cgm_json)
+    pd_cgm['deviceTime'] = pd_cgm['Time']
+
+    pd_smbg['deviceTime_dt'] = pd.to_datetime(pd_smbg['deviceTime'])
+    pd_cgm ['deviceTime_dt'] = pd.to_datetime(pd_cgm ['deviceTime'])
+
+    pd_smbg = pd_smbg.sort_values(by='deviceTime_dt',ascending=True)
+    pd_cgm  = pd_cgm.sort_values(by='deviceTime_dt',ascending=True)
+
+    pd_merged = pd.merge_asof(pd_smbg,pd_cgm,on='deviceTime_dt',tolerance=pd.Timedelta('15m'))
+    pd_merged = pd_merged[pd_merged['Glucose'].notnull()]
+
+    fig = plotly.subplots.make_subplots(rows=1,cols=1)
+    UpdateLayout(fig)
+    fig.update_xaxes(range=[30,350], row=1, col=1, nticks=7)
+    fig.update_yaxes(range=[30,350], row=1, col=1)
+    fig.update_yaxes(title_text="CGM BG (mg/dL)", row=1, col=1, gridcolor='White')
+    fig.update_xaxes(title_text="Capillary BG (mg/dL)", row=1, col=1, gridcolor='White')
+    fig.update_layout(margin=dict(l=20, r=300, t=27, b=20))
+
+    fig.append_trace({'x':[30,350],'y':[30,350],
+                      'mode':'lines',
+                      'line':{'width':1,'color':'LightGray'},
+                      },1,1)
+
+    fing  = pd_merged['value']*18.01559
+    cgm = pd_merged['Glucose']
+
+    c, stats = np.polynomial.polynomial.polyfit(fing.to_numpy(),cgm.to_numpy(),1,full=True)
+    x = np.linspace(30,350,100)
+    y = c[0] + x*c[1] # + x*x*c[2] + x*x*x*c[3] + x*x*x*x*c[4]
+
+    fig.append_trace({'x':x,'y':y,
+                      'type':'scatter','name':'1-wk avg',
+                      'mode':'lines',
+                      'line':{'width':2},
+                      },1,1)
+
+    fig.append_trace({'x':fing,'y':cgm,
+                      'type':'scatter','name':'1-wk avg',
+                      'mode':'markers',
+                      'marker':{'color':'Black','size':4},
+                      },1,1)
+
+    return fig
+
 
 def doDayPlot(pd_smbg_json,active_profile_json,active_containers_json,analysis_mode,date,basals_json,pd_cont_json,pd_cgm_json,pd_basal_json,isSandbox = False) :
 
