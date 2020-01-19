@@ -214,8 +214,10 @@ def doCGMAnalysis(pd_smbg_json,active_profile_json,active_containers_json,analys
     fig.update_yaxes(title_text="CGM BG (mg/dL)", row=1, col=1, gridcolor='White')
     fig.update_xaxes(title_text="Capillary BG (mg/dL)", row=1, col=1, gridcolor='White')
     fig.update_layout(margin=dict(l=20, r=300, t=27, b=20))
+    fig.update_layout(showlegend=True)
 
     fig.append_trace({'x':[30,350],'y':[30,350],
+                      'name':'y = x',
                       'mode':'lines',
                       'line':{'width':1,'color':'LightGray'},
                       },1,1)
@@ -228,13 +230,13 @@ def doCGMAnalysis(pd_smbg_json,active_profile_json,active_containers_json,analys
     y = c[0] + x*c[1] # + x*x*c[2] + x*x*x*c[3] + x*x*x*x*c[4]
 
     fig.append_trace({'x':x,'y':y,
-                      'type':'scatter','name':'1-wk avg',
+                      'type':'scatter','name':'Linear fit',
                       'mode':'lines',
                       'line':{'width':2},
                       },1,1)
 
     fig.append_trace({'x':fing,'y':cgm,
-                      'type':'scatter','name':'1-wk avg',
+                      'type':'scatter','name':'Data',
                       'mode':'markers',
                       'marker':{'color':'Black','size':4},
                       },1,1)
