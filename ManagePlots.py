@@ -42,7 +42,7 @@ def GetSummaryPlots(pd_smbg,start_time_dt,end_time_dt) :
     plots = []
 
     # Make a copy with [:]
-    bgs = pd_smbg[(pd.to_datetime(pd_smbg['deviceTime']) > start_time_dt) & (pd.to_datetime(pd_smbg['deviceTime']) < end_time_dt)][:]
+    bgs = pd_smbg[(pd.to_datetime(pd_smbg['deviceTime']) >= start_time_dt) & (pd.to_datetime(pd_smbg['deviceTime']) <= end_time_dt)][:]
     bgs = bgs.sort_values(by='deviceTime',ascending=True)
 
     # The "index" needs to be a datetime type, with unit "seconds" for some reason.
@@ -225,7 +225,7 @@ def doCGMAnalysis(pd_smbg_json,active_profile_json,active_containers_json,analys
     fig.update_yaxes(row=1, col=2, gridcolor='White',linecolor='Black',mirror='ticks',rangemode='tozero')
 
     # Row 2, column 2
-    fig.update_xaxes(title_text="CGM-Capillary", row=2, col=2, gridcolor='White', range=[-1,1],)
+    fig.update_xaxes(title_text="(CGM-Capillary)/Capillary", row=2, col=2, gridcolor='White', range=[-1,1],)
     fig.update_yaxes(row=2, col=2, gridcolor='White',linecolor='Black',mirror='ticks',rangemode='tozero',type='log')
 
     fig.append_trace({'x':[30,350],'y':[30,350],
@@ -234,10 +234,10 @@ def doCGMAnalysis(pd_smbg_json,active_profile_json,active_containers_json,analys
                       'line':{'width':1,'color':'LightGray'},
                       },1,1)
 
-    fing  = pd_merged['value']*18.01559
-    cgm = pd_merged['Glucose']
+    pd_merged['finger'] = pd_merged['value']*18.01559
 
-    c, stats = np.polynomial.polynomial.polyfit(fing.to_numpy(),cgm.to_numpy(),1,full=True)
+    c, stats = np.polynomial.polynomial.polyfit(pd_merged['finger'].to_numpy(),
+                                                pd_merged['Glucose'].to_numpy(),1,full=True)
     x = np.linspace(30,350,100)
     y = c[0] + x*c[1] # + x*x*c[2] + x*x*x*c[3] + x*x*x*x*c[4]
 
@@ -247,13 +247,13 @@ def doCGMAnalysis(pd_smbg_json,active_profile_json,active_containers_json,analys
                       'line':{'width':2},
                       },1,1)
 
-    fig.append_trace({'x':fing,'y':cgm,
+    fig.append_trace({'x':pd_merged['finger'],'y':pd_merged['Glucose'],
                       'type':'scatter','name':'Data',
                       'mode':'markers',
                       'marker':{'color':'Black','size':4},
                       },1,1)
 
-    diffs = list((cgm - fing)/fing)
+    pd_merged['diff'] = (pd_merged['Glucose']-pd_merged['finger'])/(pd_merged['finger'])
 
     # Histogram (built-in)
     # fig.append_trace(go.Histogram(x= diffs, autobinx=False,
@@ -266,8 +266,11 @@ def doCGMAnalysis(pd_smbg_json,active_profile_json,active_containers_json,analys
     shape = (len(xbin_edges)+1,)
     sumw = np.zeros(shape)
 
-    for i in range(len(diffs)) :
-        xbin = np.searchsorted(xbin_edges,diffs[i],side='right')
+    def histBin(diff) :
+        return np.searchsorted(xbin_edges,diff,side='right')
+
+    pd_merged['xbin'] = np.vectorize(histBin)(pd_merged['diff'])
+    for xbin in pd_merged['xbin'] :
         sumw[xbin] += 1
 
     mard_plot = {'x':bin_centers,'y':sumw[1:-1],
@@ -280,19 +283,16 @@ def doCGMAnalysis(pd_smbg_json,active_profile_json,active_containers_json,analys
                  'showlegend':False,
                  }
 
-    sig = np.std(diffs)
-    mu = np.mean(diffs)
+    sig = np.std(pd_merged['diff'])
+    mu = np.mean(pd_merged['diff'])
 
     def gaussian(x, mu, sig):
         return (1/(sig*np.sqrt(2*np.pi))) * np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
 
-    gaus_func_x = np.linspace(-1, 1, num=100+1) # 5 times more points
-    gaus_func_y = gaussian(gaus_func_x,mu,sig)
-    gaus_func_y = 5*gaus_func_y*(len(diffs)/sum(gaus_func_y)) # compensate for 5x more points
-
     data = pd.DataFrame()
-    data['x'] = gaus_func_x
-    data['y'] = gaus_func_y
+    data['x'] = np.linspace(-1, 1, num=100+1) # 5 times more points
+    data['y'] = gaussian(data['x'],mu,sig)
+    data['y'] = 5*data['y']*(len(pd_merged['diff'])/float(data['y'].sum())) # compensate for 5x more points
 
     stopAt = 0.5
     gaus_plot = {'x':data[data['y'] > stopAt]['x'],'y':data[data['y'] > stopAt]['y'],
