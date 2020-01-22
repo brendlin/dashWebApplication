@@ -205,7 +205,8 @@ def doCGMAnalysis(pd_smbg_json,active_profile_json,active_containers_json,analys
     pd_smbg = pd_smbg.sort_values(by='deviceTime_dt',ascending=True)
     pd_cgm  = pd_cgm.sort_values(by='deviceTime_dt',ascending=True)
 
-    pd_merged = pd.merge_asof(pd_smbg,pd_cgm,on='deviceTime_dt',tolerance=pd.Timedelta('15m'))
+    # Default is 'backward', which means CGM readings will be earlier than BG (necessary since I usually start eating after fingerstick.)
+    pd_merged = pd.merge_asof(pd_smbg,pd_cgm,on='deviceTime_dt',tolerance=pd.Timedelta('15m'),direction='backward')
     pd_merged = pd_merged[pd_merged['Glucose'].notnull()]
 
     fig = plotly.subplots.make_subplots(rows=2,cols=2,specs=[[{"rowspan": 2},{}],[None,{}]],)
@@ -219,6 +220,7 @@ def doCGMAnalysis(pd_smbg_json,active_profile_json,active_containers_json,analys
     fig.update_yaxes(range=[30,350], row=1, col=1)
     fig.update_yaxes(title_text="CGM BG (mg/dL)", row=1, col=1, gridcolor='White')
     fig.update_xaxes(title_text="Capillary BG (mg/dL)", row=1, col=1, gridcolor='White')
+    fig.update_xaxes(hoverformat='0.0f',row=1,col=1)
 
     # Row 1, column 2
     fig.update_xaxes(row=1, col=2, gridcolor='White',range=[-1,1])
@@ -228,11 +230,27 @@ def doCGMAnalysis(pd_smbg_json,active_profile_json,active_containers_json,analys
     fig.update_xaxes(title_text="(CGM-Capillary)/Capillary", row=2, col=2, gridcolor='White', range=[-1,1],)
     fig.update_yaxes(row=2, col=2, gridcolor='White',linecolor='Black',mirror='ticks',rangemode='tozero',type='log')
 
+    # plus-or-minus 20%
+    fig.append_trace({'x':[30,36,350,350,291,30,30],'y':[30,30,291,350,350,36,30],
+                      'name':'y = x'+u'\u00B1'+'20%','mode':'lines',
+                      'line':{'width':1,'color':'LightGray'},
+                      'fillcolor':'LightGray','fill':'tozeroy',},1,1)
+
     fig.append_trace({'x':[30,350],'y':[30,350],
                       'name':'y = x',
                       'mode':'lines',
-                      'line':{'width':1,'color':'LightGray'},
+                      'line':{'width':1,'color':'Gray'},
                       },1,1)
+
+    # Zones
+    fig.append_trace({'x':[50,170,350],'y':[30,145,275],'name':'Zone A','mode':'lines',
+                      'line':{'width':1,'color':'Orange'},},1,1)
+    fig.append_trace({'x':[30,140,260],'y':[50,170,350],'name':'Zone A','mode':'lines',
+                      'line':{'width':1,'color':'Orange'},'showlegend':False,},1,1)
+    fig.append_trace({'x':[120,260,350],'y':[30,130,167],'name':'Zone B','mode':'lines',
+                      'line':{'width':1,'color':'Red'},},1,1)
+    fig.append_trace({'x':[30,50,70,173],'y':[60,80,110,350],'name':'Zone B','mode':'lines',
+                      'line':{'width':1,'color':'Red'},'showlegend':False,},1,1)
 
     pd_merged['finger'] = pd_merged['value']*18.01559
 
@@ -241,19 +259,22 @@ def doCGMAnalysis(pd_smbg_json,active_profile_json,active_containers_json,analys
     x = np.linspace(30,350,100)
     y = c[0] + x*c[1] # + x*x*c[2] + x*x*x*c[3] + x*x*x*x*c[4]
 
-    fig.append_trace({'x':x,'y':y,
-                      'type':'scatter','name':'Linear fit',
-                      'mode':'lines',
-                      'line':{'width':2},
-                      },1,1)
+    # Linear fit (turn off for now)
+    if False :
+        fig.append_trace({'x':x,'y':y,'type':'scatter','name':'Linear fit',
+                          'mode':'lines','line':{'width':2,'color':'Red'},},1,1)
 
     fig.append_trace({'x':pd_merged['finger'],'y':pd_merged['Glucose'],
+                      'text':pd_merged['deviceTime_dt'].dt.strftime('%Y-%m-%d %H:%M'),
                       'type':'scatter','name':'Data',
                       'mode':'markers',
                       'marker':{'color':'Black','size':4},
                       },1,1)
 
     pd_merged['diff'] = (pd_merged['Glucose']-pd_merged['finger'])/(pd_merged['finger'])
+
+    # MARD
+    #pd_merged['diff'] = np.absolute(pd_merged['Glucose']-pd_merged['finger'])/(pd_merged['finger'])
 
     # Histogram (built-in)
     # fig.append_trace(go.Histogram(x= diffs, autobinx=False,
