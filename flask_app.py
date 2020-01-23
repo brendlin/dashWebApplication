@@ -88,25 +88,30 @@ app.layout = html.Div(
         html.Div(id='upload-cgm-panda'      ,style={'display': 'none'},children=None), # This stores the historical basal schedules
         html.Div(id='upload-basal-panda'    ,style={'display': 'none'},children=None),
 
-        html.Div(children=[dcc.Dropdown(id='analysis-mode-dropdown',
+        html.Div(children=['''Pick an analysis: ''',
+                           dcc.Dropdown(id='analysis-mode-dropdown',
                                         options=[{'label':'Overview Mode','value':'data-overview'},
                                                  {'label':'Daily Analysis Mode','value':'daily-analysis'},
                                                  {'label':'Sandbox Mode','value':'sandbox'},
                                                  {'label':'CGM Performance','value':'cgm-plot'},
                                                  ],
                                         value='data-overview',
-                                        style={'width':'250px','display': 'inline-block','verticalAlign':'middle'},
+                                        style={'width':'200px','display': 'inline-block','verticalAlign':'middle'},
                                         searchable=False,
                                         ),
-                           html.Div(style={'display':'inline-block','width':'10px'}),
-                           '''Pick a date: ''',
-                           dcc.DatePickerSingle(id='my-date-picker-single',
-                                                min_date_allowed=Utils.sandbox_date,
-                                                max_date_allowed=Utils.sandbox_date,
-                                                initial_visible_month=Utils.sandbox_date,
-                                                date=Utils.sandbox_date,
-                                                disabled=True,
-                                                ),
+                           # use the 'height' below to control the height of this particular row
+                           html.Div(style={'display':'inline-block','width':'10px','height':'42px','verticalAlign':'middle'}),
+                           html.Div(id='date-related-div',style={'display':'none'},
+                                    children=['''Pick a date: ''',
+                                              dcc.DatePickerSingle(id='my-date-picker-single',
+                                                                   min_date_allowed=Utils.sandbox_date,
+                                                                   max_date_allowed=Utils.sandbox_date,
+                                                                   initial_visible_month=Utils.sandbox_date,
+                                                                   date=Utils.sandbox_date,
+                                                                   disabled=True,
+                                                                   ),
+                                              ],
+                                    ),
                            ],
                  style={'display': 'inline-block','verticalAlign':'middle'},
                  ),
@@ -199,6 +204,7 @@ def update_file(contents, name):
                Output('my-date-picker-single', 'initial_visible_month'),
                Output('my-date-picker-single', 'date'),
                Output('my-date-picker-single', 'disabled'),
+               Output('date-related-div', 'style'),
                ],
               [Input('upload-smbg-panda','children'),
                Input('analysis-mode-dropdown','value'),
@@ -212,7 +218,7 @@ def update_file(contents, name):
 def update_date_picker(pd_smbg_json,analysis_mode,min_date_old,max_date_old,month_old,date_old):
 
     if (not pd_smbg_json) or (analysis_mode == 'sandbox') :
-        return min_date_old,max_date_old,month_old,date_old,True
+        return min_date_old,max_date_old,month_old,date_old,True,{'display':'none'}
 
     pd_smbg = pd.read_json(pd_smbg_json)
 
@@ -225,8 +231,9 @@ def update_date_picker(pd_smbg_json,analysis_mode,min_date_old,max_date_old,mont
     day      = max_date
 
     disabled = (analysis_mode != 'daily-analysis')
+    display_date = {'display':'none'} if disabled else {'display':'inline-block'}
 
-    return min_date,max_date,month,day,disabled
+    return min_date,max_date,month,day,disabled,display_date
 
 #
 # Upload callback (Libre)
