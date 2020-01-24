@@ -25,6 +25,7 @@ def MakeTableGradient(rgba1,rgba2,transparency = 0.55) :
 class DefaultColorScheme :
 
     CGMData = '#77B6EA'
+    MeterData = '#1C2541'
 
     TargetBandColorGreen = 'rgba(102,224,102,0.75)'
     TargetBandColorYellow = 'rgba(255,224,102,0.75)'
@@ -73,6 +74,7 @@ class ColorScheme2 :
     LRed   = 'rgba(187, 108, 100, 1)' #BB6C64
 
     CGMData = Blue
+    MeterData = '#1C2541'
 
     TargetBandColorGreen = Green.replace('1)','0.75)')
     TargetBandColorYellow = Yellow.replace('1)','0.75)')

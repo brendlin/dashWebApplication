@@ -54,6 +54,24 @@ def GetSuspendPlot(the_userprofile,containers,start_time_dt,end_time_dt) :
     return ret_plots
 
 #------------------------------------------------------------------
+def GetBGMeasurementsFromTable(containers) :
+    bgs_x = []
+    bgs_y = []
+    for c in containers :
+        if c.__class__.__name__ != 'BGMeasurement' :
+            continue
+        bgs_x.append(datetime.datetime.fromtimestamp(c.iov_0_utc))
+        bgs_y.append(c.const_BG)
+
+    return {'x': bgs_x,
+            'y': bgs_y,
+            'type':'scatter',
+            'name':'BGs from table',
+            'mode': 'markers',
+            'marker':{'color':ColorScheme.Transparent,'size':10,'line':{'width':2,'color':ColorScheme.MeterData}},
+            }
+
+#------------------------------------------------------------------
 def GetDeltaPlots(the_userprofile,containers,start_time_dt64,end_time_dt64) :
 
     ret_plots = []
@@ -346,6 +364,7 @@ def GetBasalSpecialConts_Tablef(pd_basal,start_time_dt64,end_time_dt64,basal_set
                 insulin_sensi = the_userprofile.getInsulinSensitivityHrMidnight(time_hr)
 
                 # basal setting at time
+                # We want to get the right day here!
                 bolus_val = basal_settings.GetLatestSettingAtTime(time_hr)*float(time_step_hr)
 
                 BGEffect += -insulin_sensi*bolus_val*(c['magnitude']/100.-1)

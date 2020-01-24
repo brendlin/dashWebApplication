@@ -32,7 +32,7 @@ def GetPlotSMBG(pd_smbg,start_time_dt,end_time_dt) :
     smbg_plot = {'x': smbg_inrange['deviceTime'],
                  'y': np.round(smbg_inrange['value']*18.01559),
                  'type': 'scatter', 'name': 'Meter Readings','mode':'markers',
-                 'marker':{'color':'#1C2541','size':12},
+                 'marker':{'color':ColorScheme.MeterData,'size':12},
                  }
 
     return smbg_plot
@@ -147,6 +147,9 @@ def GetAnalysisPlots(pd_smbg,pd_cont,basals,containers,the_userprofile,start_tim
     for plot in delta_plots :
         return_plots[1].append(plot)
 
+    # BG measurements from the table:
+    return_plots[0].append(ManageBGActions.GetBGMeasurementsFromTable(containers))
+
     return return_plots
 
 
@@ -254,15 +257,23 @@ def doCGMAnalysis(pd_smbg_json,active_profile_json,active_containers_json,analys
 
     pd_merged['finger'] = pd_merged['value']*18.01559
 
-    c, stats = np.polynomial.polynomial.polyfit(pd_merged['finger'].to_numpy(),
-                                                pd_merged['Glucose'].to_numpy(),1,full=True)
-    x = np.linspace(30,350,100)
-    y = c[0] + x*c[1] # + x*x*c[2] + x*x*x*c[3] + x*x*x*x*c[4]
-
     # Linear fit (turn off for now)
     if False :
-        fig.append_trace({'x':x,'y':y,'type':'scatter','name':'Linear fit',
-                          'mode':'lines','line':{'width':2,'color':'Red'},},1,1)
+
+        c, stats = np.polynomial.polynomial.polyfit(pd_merged['Glucose'].to_numpy(),
+                                                    pd_merged['finger'].to_numpy(),3,full=True)
+        x = np.linspace(-100,600,100)
+        y = c[0] + x*c[1] + x*x*c[2] + x*x*x*c[3] # + x*x*x*x*c[4] + x*x*x*x*x*c[5]
+
+        c2, stats2 = np.polynomial.polynomial.polyfit(pd_merged['Glucose'].to_numpy(),
+                                                      pd_merged['finger'].to_numpy(),5,full=True)
+        x2 = np.linspace(-100,600,100)
+        y2 = c2[0] + x*c2[1] + x*x*c2[2] + x*x*x*c2[3] + x*x*x*x*c2[4] + x*x*x*x*x*c2[5]
+
+        fig.append_trace({'x':y,'y':x,'type':'scatter','name':'Linear fit',
+                          'mode':'lines','line':{'width':2,'color':'Blue'},},1,1)
+        fig.append_trace({'x':y2,'y':x2,'type':'scatter','name':'Linear fit','showlegend':False,
+                          'mode':'lines','line':{'width':2,'color':'Blue'},},1,1)
 
     fig.append_trace({'x':pd_merged['finger'],'y':pd_merged['Glucose'],
                       'text':pd_merged['deviceTime_dt'].dt.strftime('%Y-%m-%d %H:%M'),
@@ -323,6 +334,34 @@ def doCGMAnalysis(pd_smbg_json,active_profile_json,active_containers_json,analys
                  'showlegend':False,
                  #'line_shape':'spline',
                  }
+
+    try :
+        from scipy.optimize import curve_fit
+        def gauss(x, *p):
+            _A, _mu, _sigma = p
+            return _A*np.exp(-(x-_mu)**2/(2.*_sigma**2))
+
+        # p0 is the initial guess for the fitting coefficients (A, mu and sigma above)
+        p0 = [1., 0., 1.]
+
+        coeff, var_matrix = curve_fit(gauss, bin_centers, sumw[1:-1], p0=p0)
+        # Get the fitted curve
+        data['fit'] = gauss(data['x'], *coeff)
+
+        gaus_fit = {'x':data[data['fit'] > stopAt]['x'],'y':data[data['fit'] > stopAt]['fit'],
+                    'type':'scatter',
+                    'mode':'lines',
+                    'line':{'width':1,'color':'green'},
+                    'showlegend':False,
+                    }
+
+        mu = coeff[1]
+        sig = coeff[2]
+        fig.append_trace(gaus_fit ,1,2)
+        fig.append_trace(gaus_fit ,2,2)
+
+    except :
+        pass
 
     # Row 1 Column 2
     fig.append_trace(mard_plot,1,2)
