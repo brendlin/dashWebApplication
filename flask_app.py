@@ -434,6 +434,8 @@ def make_container_tables(n_clicks, containers_selected_from_dropdown, rows_ed, 
     if not dash.callback_context.triggered:
         raise PreventUpdate
 
+    tmp_date = Utils.sandbox_date if (analysis_mode == 'sandbox') else date
+
     # If the user requested a new row:
     if (n_clicks > 0) and ('n_clicks' in dash.callback_context.triggered[0]['prop_id']) :
         next = {c['id']: '' for c in columns_fix}
@@ -450,7 +452,7 @@ def make_container_tables(n_clicks, containers_selected_from_dropdown, rows_ed, 
         return rows_ed, rows_fix
 
     # Otherwise, it was a new dropdown:
-    return ContainersTableFunctions.UpdateContainerTable(containers_selected_from_dropdown,date)
+    return ContainersTableFunctions.UpdateContainerTable(containers_selected_from_dropdown,tmp_date)
 
 #
 # Update units table to reflect container table
