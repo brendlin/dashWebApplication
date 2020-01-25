@@ -29,6 +29,7 @@ import ContainersTableFunctions
 import ManageBGActions
 import Utils
 from ColorSchemes import ColorScheme
+import ButtonsAndComponents as comps
 
 # BG Classes
 from BGModel import BGActionClasses
@@ -49,131 +50,80 @@ app.layout = html.Div(
 
         #html.Div(children='''The following works with Tidepool and Medtronic 551.'''),
 
-        html.Div([html.Div(dcc.Upload(id='upload-data',
-                                      children=[html.Button('Upload from Tidepool',style={'width':'95%','display':'table-cell'})],
-                                      multiple=False,
-                                      style={'width':'300px','display':'table-cell'}
-                                      ),
-                           style={'display':'table-cell','width':'25%'}),
-                  html.Div(id='uploaded-input-data-status',children=None,style={'display':'table-cell','width':'25%','align':'left'}),
-                  html.Div(dcc.Upload(id='upload-libre',
-                                      children=[html.Button('Upload from Libre',style={'width':'95%','display':'table-cell'})],
-                                      multiple=False,
-                                      style={'width':'25%','display':'table-cell'}
-                                      ),
-                           style={'display':'table-cell','width':'25%'}),
-                  html.Div(id='uploaded-libre-status',children=None,style={'display':'table-cell','width':'25%','align':'left'}),
-                  ],
-                 style={'align':'left','width':'100%','display':'table'}
-                 ),
+        html.Div(
+            [html.Div([comps.upload_data],
+                      style={'display':'table-cell','width':'25%'}),
+             html.Div(id='uploaded-input-data-status',children=None,style={'display':'table-cell','width':'25%','align':'left'}),
+             html.Div([comps.upload_libre],
+                      style={'display':'table-cell','width':'25%'}),
+             html.Div(id='uploaded-libre-status',children=None,style={'display':'table-cell','width':'25%','align':'left'}),
+             ],
+            style={'align':'left','width':'100%','display':'table'}
+            ),
 
-        # Saved profiles (panda)
-        html.Div(id='active-profile'    ,style={'display': 'none'},children=None), # This will store the json text
-        html.Div(id='profiles-from-data',style={'display': 'none'},children=None), # This will store the json text
-        html.Div(id='custom-profiles'   ,style={'display': 'none'},children=None), # This will store the json text
-        html.Div(id='bwz-profile'       ,style={'display': 'none'},children=None), # This will store the json text
-
-        # Saved container profiles
-        html.Div(id='active-containers'      ,style={'display': 'none'},children=None),
-        html.Div(id='bwz-containers',style={'display': 'none'},children=None),
-        html.Div(id='custom-containers'      ,style={'display': 'none'},children=None),
-
-        # Saved basal schedules (panda)
-        html.Div(id='all-basal-schedules',style={'display':'none'},children=None), # This stores the historical basal schedules
-
-        # Sub-panda datasets from raw file
-        html.Div(id='upload-smbg-panda'     ,style={'display': 'none'},children=None), # This stores the historical basal schedules
-        html.Div(id='upload-container-panda',style={'display': 'none'},children=None), # This stores the historical basal schedules
-        html.Div(id='upload-settings-panda' ,style={'display': 'none'},children=None), # This stores the historical basal schedules
-        html.Div(id='upload-cgm-panda'      ,style={'display': 'none'},children=None), # This stores the historical basal schedules
-        html.Div(id='upload-basal-panda'    ,style={'display': 'none'},children=None),
-
+        # Analysis picker and Events picker Div
         html.Div(
             [html.Div(['''Pick an analysis: ''',
-                       dcc.Dropdown(id='analysis-mode-dropdown',
-                                    options=[{'label':'Overview Mode','value':'data-overview'},
-                                             {'label':'Daily Analysis Mode','value':'daily-analysis'},
-                                             {'label':'Sandbox Mode','value':'sandbox'},
-                                             {'label':'CGM Performance','value':'cgm-plot'},
-                                             ],
-                                    value='data-overview',
-                                    style={'width':'200px','display': 'inline-block','verticalAlign':'middle'},
-                                    searchable=False,
-                                    ),
+                       comps.analy_mode_dropdown,
                        # use the 'height' below to control the height of this particular row
                        html.Div(style={'display':'inline-block','width':'10px','height':'42px','verticalAlign':'middle'}),
-                       html.Div(id='date-related-div',style={'display':'none'},
-                                children=['''Pick a date: ''',
-                                          dcc.DatePickerSingle(id='my-date-picker-single',
-                                                               min_date_allowed=Utils.sandbox_date,
-                                                               max_date_allowed=Utils.sandbox_date,
-                                                               initial_visible_month=Utils.sandbox_date,
-                                                               date=Utils.sandbox_date,
-                                                               disabled=True,
-                                                               ),
-                                          ],
-                                ),
+                       html.Div(['''Pick a date: ''',comps.date_picker,],id='date-related-div',style={'display':'none'},),
                        ],
                       className='seven columns',
                       #style={'display': 'inline-block','verticalAlign':'middle'},
                       ),
              html.Div(
-                    html.Div(html.Div(['''Events: ''',
-                                       dcc.Dropdown(id='containers-dropdown',placeholder='Daily events',style={'width':'200px','display': 'inline-block','verticalAlign':'middle'},searchable=False),
-                                       html.Button('Add row', id='add-rows-button', n_clicks=0,style={'display':'table-cell'}),
-                                       ],
-                                      style={'display':'table-cell','verticalAlign':'middle'},
-                                      ),
-                             style={'height':'50px','display':'table','width':'100%',},
-                             ),
-                    style={'padding':'5px','margin-left':'30px'},
+                    [html.Div(['''Events: ''',
+                               comps.containers_dropdown,
+                               html.Div(style={'display':'inline-block','width':'10px','height':'42px','verticalAlign':'middle'}),
+                               comps.add_rows,
+                               ],
+                              style={'display':'table-cell','verticalAlign':'middle'},
+                              ),
+                     ],
+                    style={'padding':'5px','margin-left':'30px','height':'50px','display':'table'},
                     className='five columns',
-                    )],
+                    ),
+             ],
             className='row',
             ),
 
-        html.Div([html.Div([dcc.Graph(id='display-tidepool-graph',
-                                      #config={'staticPlot':True,},
-                                      figure={'layout':{'margin':{'l':60, 'r':20, 't':27, 'b':20},
-                                                        'paper_bgcolor':'White','plot_bgcolor':'White',
-                                                        'yaxis':{'title':'BG (mg/dL)','range':[50,300],'linecolor':'Black','mirror':'ticks','hoverformat':'0.0f',},
-                                                        'xaxis':{'range':[1,100],'linecolor':'Black','mirror':'ticks'},
-                                                        }
-                                              },
-                                      style={'height': 400,}
-                                      ),
-                            ],
-                           className='seven columns',
-                           ),
-                  html.Div([dcc.Checklist(id='allow-insulin',
-                                          options=[{'label':'Allow edits to insulin, BG measurements, temp basal, etc.','value':'allow-insulin'}],
-                                          value=[]),
-                            html.P('Food, Fatty events:',style={'margin-bottom':'0px','margin-top':'10px'}),
-                            html.Div(ContainersTableFunctions.container_table,style={'display':'table-cell'}),
-                            html.Div(ContainersTableFunctions.container_table_units,style={'display':'table-cell'}),
-                            html.P('Insulin, BG measurements, Temp basals, etc:',style={'margin-bottom':'0px','margin-top':'10px'}),
-                            html.Div(ContainersTableFunctions.container_table_fixed,style={'display':'table-cell'}),
-                            html.Div(ContainersTableFunctions.container_table_fixed_units,style={'display':'table-cell'}),
-                            ],
-                           className='five columns',
-                           style={'height':'400px','maxHeight': '400px', 'overflow': 'scroll','border-style':'solid',
-                                  'border-width':'thin','border-color':'black','padding':'5px','margin-left':'30px',},
-                           ),
-                  ],
-                 className='row',
-                 ),
+        # Graph and Containers Div
+        html.Div(
+            [html.Div([comps.main_graph,],
+                      className='seven columns',),
+             html.Div(
+                    [comps.allow_insulin,
+                     html.P('Food, Fatty events:',style={'margin-bottom':'0px','margin-top':'10px'}),
+                     html.Div(ContainersTableFunctions.container_table,style={'display':'table-cell'}),
+                     html.Div(ContainersTableFunctions.container_table_units,style={'display':'table-cell'}),
+                     html.P('Insulin, BG measurements, Temp basals, etc:',style={'margin-bottom':'0px','margin-top':'10px'}),
+                     html.Div(ContainersTableFunctions.container_table_fixed,style={'display':'table-cell'}),
+                     html.Div(ContainersTableFunctions.container_table_fixed_units,style={'display':'table-cell'}),
+                     ],
+                    className='five columns',
+                    style={'height':'400px','maxHeight': '400px', 'overflow': 'scroll','border-style':'solid',
+                           'border-width':'thin','border-color':'black','padding':'5px','margin-left':'30px',},
+                    ),
+             ],
+            className='row',
+            ),
 
-        html.Div(html.Div([dcc.Dropdown(id='profiles-dropdown',placeholder='Your profiles',style={'width':'250px','display': 'inline-block','verticalAlign':'middle'},searchable=False),
-                           html.Div(style={'width':'20px','display':'inline-block'}),
-                           html.Label('Insulin decay time (hr): ',style={'width': '20%','display': 'inline-block','verticalAlign':'middle'}),
-                           dcc.Input(id='insulin-decay-time', value='4', type='text',style={'width': '5%','display': 'inline-block','align': 'left','marginRight':'5%','verticalAlign':'middle'}),
-                           html.Label('Food decay time (hr): ',style={'width': '20%','display': 'inline-block','verticalAlign':'middle'}),
-                           dcc.Input(id='food-decay-time', value='2', type='text',style={'width': '5%','display': 'inline-block','verticalAlign':'middle'}),
-                           ],
-                          style={'display':'table-cell','verticalAlign':'middle'},
-                          ),
-                 style={'height':'50px','display':'table','width':'100%'},
-                 ),
+        # Profiles Div
+        html.Div(
+            [html.Div(
+                    [dcc.Dropdown(id='profiles-dropdown',placeholder='Your profiles',style={'width':'250px','display': 'inline-block','verticalAlign':'middle'},searchable=False),
+                     html.Div(style={'width':'20px','display':'inline-block'}),
+                     html.Label('Insulin decay time (hr): ',style={'width': '20%','display': 'inline-block','verticalAlign':'middle'}),
+                     dcc.Input(id='insulin-decay-time', value='4', type='text',style={'width': '5%','display': 'inline-block','align': 'left','marginRight':'5%','verticalAlign':'middle'}),
+                     html.Label('Food decay time (hr): ',style={'width': '20%','display': 'inline-block','verticalAlign':'middle'}),
+                     dcc.Input(id='food-decay-time', value='2', type='text',style={'width': '5%','display': 'inline-block','verticalAlign':'middle'}),
+                     ],
+                    style={'display':'table-cell','verticalAlign':'middle'},
+                    ),
+             ],
+            style={'height':'50px','display':'table','width':'100%'},
+            ),
 
         SettingsTableFunctions.base_settings_table,
         SettingsTableFunctions.derived_settings_table,
@@ -188,6 +138,8 @@ app.layout = html.Div(
                      style={'display': 'none'},
                      ),
 
+        # here is where all the hidden components get added
+        *comps.storage,
         ] # html.Div Children
     ) # html.Div
 
