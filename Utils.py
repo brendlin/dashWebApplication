@@ -3,6 +3,7 @@ import datetime
 import json
 import plotly.graph_objects as go
 from ColorSchemes import ColorScheme
+from BGModel import Settings
 
 # These should be kept const
 sandbox_date     = '1970-01-02T04:00:00'
@@ -46,3 +47,20 @@ def AddTargetBands(fig,min_yellow=80,min_green=100,max_green=150,max_yellow=180)
             line_width=0,layer="below"))
 
     return
+
+def WrapUpDayContainers(name,conts_Tablef,basals) :
+    # The name, the containers in table format, the basals
+    s_conts = '$$$'.join(list(json.dumps(c) for c in conts_Tablef))
+    s_basals = basals.toJson()
+
+    wrapped = '###'.join([name,s_conts,s_basals])
+    return wrapped
+
+def UnWrapDayContainers(wrapped) :
+
+    name,s_conts,s_basals = wrapped.split('###')
+
+    conts = list(json.loads(c) for c in s_conts.split('$$$'))
+    basals = Settings.UserSetting.fromJson(s_basals)
+
+    return name,conts,basals

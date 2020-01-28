@@ -4,7 +4,10 @@ import json
 import datetime
 import Utils
 from BGModel.BGActionClasses import *
+from BGModel import Settings
 from ColorSchemes import ColorScheme
+
+import ManageSettings
 
 columns = [['IsBWZ','IsBWZ'],
            ['class','Event type'],
@@ -75,6 +78,17 @@ container_table_fixed = DataTable(id='container-table-fixed',
                                                         ],
                                   )
 
+columns_basal = [['ValidFrom','Valid from'],
+                 ['time','time'],
+                 ['Units','Units'],
+                 ]
+
+container_table_basal = DataTable(id='container-table-basal',
+                                  columns=[ {'name':i[1], 'id':i[0]} for i in columns_basal],
+                                  data=[],
+                                  style_cell={'height': height,'textAlign':'right','fontWeight':'bold'},
+                                  )
+
 container_table_units = DataTable(id='container-table-editable-units',
                                   columns=[{'name':'class','id':'class'},{'name':'', 'id':'unit'}],
                                   data=[],
@@ -96,22 +110,23 @@ def UpdateContainerTable(the_containers_json,date) :
 
     out_table_editable = []
     out_table_fixed = []
+    out_table_basals = []
 
     add_an_event = {'iov_0_str':'YYYY-MM-DD HH:MM','iov_1_utc':'','IsBWZ':'0','class':'Add an event','magnitude':'','duration_hr':'','hr':'hr'}
 
     if not the_containers_json :
         out_table_editable.append(add_an_event)
-        return out_table_editable, out_table_fixed
+        return out_table_editable, out_table_fixed, out_table_basals
 
-    containers = the_containers_json.split('$$$')[1:]
-    the_date = the_containers_json.split('$$$')[0].replace('@','').replace('BWZ Inputs','').rstrip()
+    the_date,containers,basals = Utils.UnWrapDayContainers(the_containers_json)
+    the_date = the_date.replace('@','').replace('BWZ Inputs','').rstrip()
 
     fixed_conts = ['BasalInsulin','LiverBasalGlucose','BGMeasurement','InsulinBolus','TempBasal','Suspend']
 
     hidden = []
     start_time_dt,end_time_dt = Utils.GetDayBeginningAndEnd_dt(date)
 
-    for c in list(json.loads(c) for c in containers) :
+    for c in containers :
 
         iov_0_str = c['iov_0_str'].rstrip('- ')
         hide = iov_0_str and datetime.datetime.strptime(iov_0_str,'%Y-%m-%d %H:%M') < start_time_dt
@@ -145,7 +160,23 @@ def UpdateContainerTable(the_containers_json,date) :
     out_table_editable.sort(key=sorter)
     out_table_fixed.sort(key=sorter)
 
-    return out_table_editable, out_table_fixed
+    # In an earlier stage we figured out which settings were relevant for a particular day.
+    for b in basals.settings_24h :
+        valid_date = datetime.datetime.strptime(b[0],'%Y-%m-%dT%H:%M:%S').strftime('%Y-%m-%d %H:%M')
+
+        for i in range(len(b[1])) :
+            bsub = b[1][i]
+
+            # remove duplicates
+            if (i > 0) and bsub[1] == b[1][i-1][1] :
+                continue
+
+            time_hr = int(bsub[0])/3600.
+            time_str = '%02d:%02d'%(int(time_hr),float(time_hr)-int(time_hr))
+            entry = {'ValidFrom':valid_date,'time':time_str,'Units':bsub[1]}
+            out_table_basals.append(entry)
+
+    return out_table_editable, out_table_fixed, out_table_basals
 
 #------------------------------------------------------------------
 def tablefToContainers(conts,date) :
@@ -275,6 +306,19 @@ def tablefToContainers(conts,date) :
     return conts_out
 
 #------------------------------------------------------------------
+def tablefToBasalRates(rows) :
+
+    out_basal = Settings.UserSetting('Basal')
+
+    for row in rows :
+        hr = int(row['time'].split(':')[0])
+        min = int(row['time'].split(':')[1])
+        time_hr = hr+min/60.
+        out_basal.AddSettingToSnapshot(row['ValidFrom']+':00',time_hr,row['Units'])
+
+    return out_basal
+
+#------------------------------------------------------------------
 def ConvertContainerTablesToActiveList_Tablef(table_ed,table_fix) :
     # In: tableformat, Out: tableformat
 
@@ -294,7 +338,7 @@ def ConvertContainerTablesToActiveList_Tablef(table_ed,table_fix) :
         for c in table_ed :
             containers.append(c)
 
-    return '$$$'.join(list(json.dumps(c) for c in containers))
+    return containers
 
 #------------------------------------------------------------------
 def UpdateUnits(rows) :

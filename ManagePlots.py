@@ -129,7 +129,7 @@ def GetPlotCGM(pd_cgm,start_time_dt,end_time_dt) :
 
     return cgm_plot
 
-def GetAnalysisPlots(pd_smbg,pd_cont,basals,containers,the_userprofile,start_time_dt,end_time_dt,pd_basal) :
+def GetAnalysisPlots(pd_smbg,basals,containers,the_userprofile,start_time_dt,end_time_dt,pd_basal) :
 
     return_plots = [[],[]]
 
@@ -168,7 +168,7 @@ def UpdateLayout(fig) :
 
     return
 
-def doOverview(pd_smbg_json,active_profile_json,active_containers_json,analysis_mode,date,basals_json,pd_cont_json,pd_cgm_json,pd_basal_json) :
+def doOverview(pd_smbg_json,pd_cgm_json) :
 
     pd_smbg = pd.read_json(pd_smbg_json)
 
@@ -190,7 +190,7 @@ def doOverview(pd_smbg_json,active_profile_json,active_containers_json,analysis_
 
     return fig
 
-def doCGMAnalysis(pd_smbg_json,active_profile_json,active_containers_json,analysis_mode,date,basals_json,pd_cont_json,pd_cgm_json,pd_basal_json) :
+def doCGMAnalysis(pd_smbg_json,pd_cgm_json) :
 
     if (not pd_cgm_json) or (not pd_smbg_json) :
         return {}
@@ -379,7 +379,7 @@ def doCGMAnalysis(pd_smbg_json,active_profile_json,active_containers_json,analys
     return fig
 
 
-def doDayPlot(pd_smbg_json,active_profile_json,active_containers_json,analysis_mode,date,basals_json,pd_cont_json,pd_cgm_json,pd_basal_json,isSandbox = False) :
+def doDayPlot(pd_smbg_json,active_profile_json,table_ed,table_fix,table_basal,date,pd_cgm_json,pd_basal_json,isSandbox = False) :
 
     pd_smbg = pd.read_json(pd_smbg_json)
 
@@ -409,8 +409,8 @@ def doDayPlot(pd_smbg_json,active_profile_json,active_containers_json,analysis_m
         fig.append_trace(smbg_plot,1,1)
 
     # After this point, we assume we are doing the full analysis.
-    pd_cont = pd.read_json(pd_cont_json)
-    basals = Settings.UserSetting.fromJson(basals_json)
+    basals = ContainersTableFunctions.tablefToBasalRates(table_basal)
+
     active_profile = Settings.TrueUserProfile.fromJson(active_profile_json)
     pd_basal = pd.read_json(pd_basal_json)
 
@@ -418,7 +418,8 @@ def doDayPlot(pd_smbg_json,active_profile_json,active_containers_json,analysis_m
     Utils.AddTargetBands(fig)
 
     # load containers, and check if they line up with the date!
-    active_containers_tablef = list(json.loads(c) for c in active_containers_json.split('$$$'))
+
+    active_containers_tablef = ContainersTableFunctions.ConvertContainerTablesToActiveList_Tablef(table_ed,table_fix)
     for c in active_containers_tablef :
         if (c.get('day_tag',None) and start_time_dt.strftime('%Y-%m-%d') not in c['day_tag']) :
             #print('skipping this update')
@@ -431,7 +432,7 @@ def doDayPlot(pd_smbg_json,active_profile_json,active_containers_json,analysis_m
         if c.IsExercise() :
             c.LoadContainers(active_containers)
 
-    plots = GetAnalysisPlots(pd_smbg,pd_cont,basals,active_containers,active_profile,start_time_dt,end_time_dt,pd_basal)
+    plots = GetAnalysisPlots(pd_smbg,basals,active_containers,active_profile,start_time_dt,end_time_dt,pd_basal)
     for plot in plots[0] :
         fig.append_trace(plot,1,1)
     for plot in plots[1] :

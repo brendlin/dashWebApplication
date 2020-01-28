@@ -79,7 +79,6 @@ storage = [
     html.Div(id='bwz-profile'       ,style={'display': 'none'},children=None), # This will store the json text
 
     # Saved container profiles
-    html.Div(id='active-containers'      ,style={'display': 'none'},children=None),
     html.Div(id='bwz-containers',style={'display': 'none'},children=None),
     html.Div(id='custom-containers'      ,style={'display': 'none'},children=None),
 

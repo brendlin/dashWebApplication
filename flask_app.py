@@ -27,6 +27,7 @@ import LoadNewFile
 import SettingsTableFunctions
 import ContainersTableFunctions
 import ManageBGActions
+import ManageSettings
 import Utils
 from ColorSchemes import ColorScheme
 import ButtonsAndComponents as comps
@@ -100,6 +101,8 @@ app.layout = html.Div(
                      html.P('Insulin, BG measurements, Temp basals, etc:',style={'margin-bottom':'0px','margin-top':'10px'}),
                      html.Div(ContainersTableFunctions.container_table_fixed,style={'display':'table-cell'}),
                      html.Div(ContainersTableFunctions.container_table_fixed_units,style={'display':'table-cell'}),
+                     html.P('Active basal schedule(s):',style={'margin-bottom':'0px','margin-top':'10px'}),
+                     html.Div(ContainersTableFunctions.container_table_basal,style={'display':'table-cell'}),
                      ],
                     className='five columns',
                     style={'height':'400px','maxHeight': '400px', 'overflow': 'scroll','border-style':'solid',
@@ -216,32 +219,36 @@ def update_file(contents, name):
 @app.callback(Output('display-tidepool-graph', 'figure'),
               [Input('upload-smbg-panda', 'children'),
                Input('active-profile', 'children'),
-               Input('active-containers','children'),
+               Input('container-table-editable', 'data'),
+               Input('container-table-fixed', 'data'),
+               Input('container-table-basal', 'data'),
                Input('analysis-mode-dropdown','value'),
                Input('my-date-picker-single', 'date'),
                ],
-              [State('all-basal-schedules','children'),
-               State('upload-container-panda','children'),
-               State('upload-cgm-panda','children'),
+              [State('upload-cgm-panda','children'),
                State('upload-basal-panda','children'),
                ])
-def update_plot(pd_smbg_json,active_profile_json,active_containers_json,analysis_mode,date,basals_json,pd_cont_json,pd_cgm_json,pd_basal_json):
+def update_plot(pd_smbg_json,active_profile_json,table_ed,table_fix,table_basal,analysis_mode,date,pd_cgm_json,pd_basal_json):
 
     if (not pd_smbg_json) :
         # Don't worry - this will be updated by default from the Upload callback
-        return {}
+        raise PreventUpdate
 
     if (analysis_mode == 'data-overview') :
-       return ManagePlots.doOverview(pd_smbg_json,active_profile_json,active_containers_json,analysis_mode,date,basals_json,pd_cont_json,pd_cgm_json,pd_basal_json)
+       return ManagePlots.doOverview(pd_smbg_json,pd_cgm_json)
+
+    if analysis_mode in ['daily-analysis','sandbox'] :
+        if not table_basal :
+            raise PreventUpdate
 
     if (analysis_mode == 'daily-analysis') :
-        return ManagePlots.doDayPlot(pd_smbg_json,active_profile_json,active_containers_json,analysis_mode,date,basals_json,pd_cont_json,pd_cgm_json,pd_basal_json)
+        return ManagePlots.doDayPlot(pd_smbg_json,active_profile_json,table_ed,table_fix,table_basal,date,pd_cgm_json,pd_basal_json)
 
     if (analysis_mode == 'sandbox') :
-        return ManagePlots.doDayPlot(pd_smbg_json,active_profile_json,active_containers_json,analysis_mode,date,basals_json,pd_cont_json,pd_cgm_json,pd_basal_json,isSandbox=True)
+        return ManagePlots.doDayPlot(pd_smbg_json,active_profile_json,table_ed,table_fix,table_basal,date,pd_cgm_json,pd_basal_json,isSandbox=True)
 
     if (analysis_mode == 'cgm-plot') :
-        return ManagePlots.doCGMAnalysis(pd_smbg_json,active_profile_json,active_containers_json,analysis_mode,date,basals_json,pd_cont_json,pd_cgm_json,pd_basal_json)
+        return ManagePlots.doCGMAnalysis(pd_smbg_json,pd_cgm_json)
 
     return {}
 
@@ -271,14 +278,20 @@ def make_day_containers(analysis_mode,date,pd_smbg_json,basals_json,pd_cont_json
     if not loadDayContainers :
         return [], None, ''
 
+    if not pd_smbg_json or not pd_cont_json or not bwz_profile_json or not pd_basal_json :
+        return [], None, ''
+
     pd_smbg = pd.read_json(pd_smbg_json)
     pd_cont = pd.read_json(pd_cont_json)
-    basals = Settings.UserSetting.fromJson(basals_json)
     active_profile = Settings.TrueUserProfile.fromJson(bwz_profile_json.split('$$$')[1])
     pd_basal = pd.read_json(pd_basal_json)
 
     tmp_date = Utils.sandbox_date if (analysis_mode == 'sandbox') else date
     start_time_dt,end_time_dt = Utils.GetDayBeginningAndEnd_dt(tmp_date)
+
+    # Get all the basal settings for this particular day
+    basals = Settings.UserSetting.fromJson(basals_json)
+    basals = ManageSettings.GetProgrammedBasalsInRange(basals,start_time_dt,end_time_dt)
 
     bwz_conts_Tablef = ManageBGActions.GetContainers_Tablef(pd_smbg,pd_cont,basals,active_profile,start_time_dt,end_time_dt,pd_basal)
 
@@ -290,7 +303,7 @@ def make_day_containers(analysis_mode,date,pd_smbg_json,basals_json,pd_cont_json
     the_time = start_time_dt.strftime('%Y-%m-%d')
     the_name = '%s BWZ Inputs'%(the_time)
     the_name_time_tagged = '@%s BWZ Inputs'%(the_time)
-    bwz_conts_json = '$$$'.join([the_name_time_tagged]+list(json.dumps(c) for c in bwz_conts_Tablef))
+    bwz_conts_json = Utils.WrapUpDayContainers(the_name_time_tagged,bwz_conts_Tablef,basals)
 
     if the_name not in list(o['label'] for o in options) :
         options.append({'label':the_name,'value':bwz_conts_json})
@@ -383,18 +396,6 @@ def update_derived_table(table,ta):
 
 
 #
-# Update the active containers from the table
-#
-@app.callback(Output('active-containers', 'children'),
-              [Input('container-table-editable', 'data'),
-               Input('container-table-fixed', 'data'),
-               ],
-              )
-def convert_container_tables_to_active(table_ed,table_fix) :
-
-    return ContainersTableFunctions.ConvertContainerTablesToActiveList_Tablef(table_ed,table_fix)
-
-#
 # Update the active settings from the table
 #
 @app.callback(Output('active-profile', 'children'),
@@ -418,6 +419,7 @@ def update_active_profile(table,ta,tf):
 #
 @app.callback([Output('container-table-editable', 'data'),
                Output('container-table-fixed', 'data'),
+               Output('container-table-basal', 'data'),
                ],
               [Input('add-rows-button', 'n_clicks'),
                Input('containers-dropdown','value'),
@@ -426,10 +428,14 @@ def update_active_profile(table,ta,tf):
                State('container-table-editable', 'columns'),
                State('container-table-fixed', 'data'),
                State('container-table-fixed', 'columns'),
+               State('container-table-basal', 'data'),
+               State('container-table-basal', 'columns'),
                State('my-date-picker-single', 'date'),
                State('analysis-mode-dropdown', 'value'),
                ])
-def make_container_tables(n_clicks, containers_selected_from_dropdown, rows_ed, columns_ed, rows_fix, columns_fix, date, analysis_mode):
+def make_container_tables(n_clicks, containers_selected_from_dropdown,
+                          rows_ed, columns_ed, rows_fix, columns_fix, rows_basal, columns_basal,
+                          date, analysis_mode):
 
     if not dash.callback_context.triggered:
         raise PreventUpdate
@@ -449,7 +455,7 @@ def make_container_tables(n_clicks, containers_selected_from_dropdown, rows_ed, 
             next['iov_0_str'] = date.split(' ')[0].split('T')[0]+' 04:00'
         next['hr'] = 'hr'
         rows_ed.append(next)
-        return rows_ed, rows_fix
+        return rows_ed, rows_fix, rows_basal
 
     # Otherwise, it was a new dropdown:
     return ContainersTableFunctions.UpdateContainerTable(containers_selected_from_dropdown,tmp_date)

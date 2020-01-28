@@ -1,4 +1,5 @@
 from BGModel import Settings
+import Utils
 import datetime
 import sys
 
@@ -103,3 +104,37 @@ def LoadFromJsonData(data) :
 
     #print('settings done.')
     return all_profiles, settings_basal
+
+def GetProgrammedBasalsInRange(basals,start_time_dt,end_time_dt) :
+    # Returns basal settings result that are relevant to a given day.
+    # (Includes support for e.g. on the day that the user re-programmed their basals)
+    # Includes one day before in order to allow lead-up calculations.
+
+    st_oneDayBefore = start_time_dt - datetime.timedelta(hours=24)
+
+    current_basal = []
+    other_basals = []
+    for basal in basals.settings_24h :
+
+        #print(basal[0])
+
+        if datetime.datetime.strptime(basal[0],'%Y-%m-%dT%H:%M:%S') > end_time_dt :
+            continue
+        if datetime.datetime.strptime(basal[0],'%Y-%m-%dT%H:%M:%S') < st_oneDayBefore :
+            current_basal = basal
+        else :
+            other_basals.append(basal)
+
+    if (not current_basal) :
+        out_basal = Settings.UserSetting('Basal')
+        timeOfDay_hr = 0
+        out_basal.AddSettingToSnapshot(Utils.sandbox_date.replace('01-02','01-01'),timeOfDay_hr,1.0)
+        return out_basal
+
+    # return the last basal before the st_oneDayBefore, plus anything that was started
+    # on this exact day.
+    out_basal = Settings.UserSetting('Basal')
+    for b in [current_basal] + other_basals :
+        out_basal.settings_24h.append(b)
+
+    return out_basal
