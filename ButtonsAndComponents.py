@@ -91,4 +91,7 @@ storage = [
     html.Div(id='upload-settings-panda' ,style={'display': 'none'},children=None), # This stores the historical basal schedules
     html.Div(id='upload-cgm-panda'      ,style={'display': 'none'},children=None), # This stores the historical basal schedules
     html.Div(id='upload-basal-panda'    ,style={'display': 'none'},children=None),
+
+    # Stuff to store the state of a dropdown while a different analysis is chosen
+    html.Div(id='last-profile-selected'    ,style={'display': 'none'},children=None),
     ]

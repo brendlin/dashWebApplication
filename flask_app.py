@@ -317,31 +317,65 @@ def make_day_containers(analysis_mode,date,pd_smbg_json,basals_json,pd_cont_json
     return options, value, bwz_conts_json
 
 #
-# Update the list of available menus
+# Update the list of available profiles
 #
 @app.callback([Output('profiles-dropdown', 'options'),
                Output('profiles-dropdown', 'value')],
               [Input('profiles-from-data', 'children'),
-               Input('custom-profiles', 'children')],
-              [State('profiles-dropdown','value')])
-def update_dropdown(profiles_from_data_json,custom_profiles_json,previous_value) :
+               Input('custom-profiles', 'children'),
+               Input('analysis-mode-dropdown', 'value'),
+               ],
+              [State('last-profile-selected','children'),
+               ])
+def update_dropdown(profiles_from_data_json,custom_profiles_json,analysis_mode,previous_value) :
 
+    if not profiles_from_data_json :
+        raise PreventUpdate
+
+    value_generic_userprofile = ''
     options = []
+
+    for each_profile in profiles_from_data_json.split('###') :
+        key,value = each_profile.split('$$$')
+        key_short = 'profile from %s'%(datetime.datetime.strptime(key,'%Y-%m-%dT%H:%M:%S').strftime('%Y-%m-%d'))
+
+        # just a little bit of disambiguation in case values are identical:
+        value = value.replace('}',',"key":"%s"}'%(key))
+
+        if '1970' in key :
+            key_short = 'A generic user profile'
+            value_generic_userprofile = value
+
+        options.append({'label':key_short,'value':value})
+
+    if analysis_mode == 'sandbox' :
+        # return options, value to display, last-status value
+        return options, value_generic_userprofile
+
     new_value = previous_value
+    if not new_value :
+        new_value = options[-1]['value']
 
-    if profiles_from_data_json :
-        profiles = dict()
-        for each_profile in profiles_from_data_json.split('###') :
-            key,value = each_profile.split('$$$')
-            key_short = 'profile from %s'%(datetime.datetime.strptime(key,'%Y-%m-%dT%H:%M:%S').strftime('%Y-%m-%d'))
-            if '1970' in key :
-                key_short = 'A generic user profile'
-            options.append({'label':key_short,'value':value})
-
-        if not new_value :
-            new_value = options[-1]['value']
-
+    # return options, value to display, last-status (non-sandbox) value
     return options, new_value
+
+#
+# Update the last profile selected
+#
+@app.callback([Output('last-profile-selected', 'children'),
+               ],
+              [Input('profiles-dropdown', 'value'),
+               Input('analysis-mode-dropdown', 'value'),
+               ])
+def update_dropdown(current_value,analysis_mode) :
+
+    if not current_value :
+        raise PreventUpdate
+
+    if analysis_mode == 'sandbox' :
+        raise PreventUpdate
+
+    return [current_value]
 
 #
 # Update the base table
