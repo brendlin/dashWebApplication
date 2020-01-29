@@ -31,7 +31,7 @@ def GetPlotSMBG(pd_smbg,start_time_dt,end_time_dt) :
 
     smbg_plot = {'x': smbg_inrange['deviceTime'],
                  'y': np.round(smbg_inrange['value']*18.01559),
-                 'type': 'scatter', 'name': 'Meter Readings','mode':'markers',
+                 'type': 'scatter', 'name': 'Deprecated','mode':'markers',
                  'marker':{'color':ColorScheme.MeterData,'size':12},
                  }
 
@@ -124,7 +124,7 @@ def GetPlotCGM(pd_cgm,start_time_dt,end_time_dt) :
                 'y': np.round(cgm_inrange['Glucose']),
                 'type': 'scatter', 'name': 'CGM Readings','mode':'markers',
                 'marker':{'color':ColorScheme.CGMData,'size':6},
-                'line': {'color':ColorScheme.CGMData, 'width':2}
+                'line': {'color':ColorScheme.CGMData, 'width':2},
                 }
 
     return cgm_plot
@@ -164,7 +164,7 @@ def UpdateLayout(fig) :
     fig.update_yaxes(hoverformat='0.0f',row=2,col=1)
     fig.update_xaxes(gridcolor='LightGray',mirror='ticks',showline=True,linecolor='Black')
     fig.update_layout(margin=dict(l=20, r=20, t=27, b=20),paper_bgcolor="White",plot_bgcolor='White')
-    fig.update_layout(showlegend=False)
+    #fig.update_layout(showlegend=False)
 
     return
 
@@ -211,6 +211,11 @@ def doCGMAnalysis(pd_smbg_json,pd_cgm_json) :
     # Default is 'backward', which means CGM readings will be earlier than BG (necessary since I usually start eating after fingerstick.)
     pd_merged = pd.merge_asof(pd_smbg,pd_cgm,on='deviceTime_dt',tolerance=pd.Timedelta('15m'),direction='backward')
     pd_merged = pd_merged[pd_merged['Glucose'].notnull()]
+
+    # Below is how to pick a certain time of day, or a certain slice of measurements.
+#     pd_merged.index = pd_merged['deviceTime_dt']
+#     pd_merged = pd_merged[pd_merged['Glucose'] < 80]
+#     pd_merged = pd_merged.between_time('4:00', '9:30')
 
     fig = plotly.subplots.make_subplots(rows=2,cols=2,specs=[[{"rowspan": 2},{}],[None,{}]],)
     UpdateLayout(fig)
@@ -394,17 +399,12 @@ def doDayPlot(pd_smbg_json,active_profile_json,table_ed,table_fix,table_basal,da
     UpdateLayout(fig)
     fig.update_xaxes(range=[start_time_dt, end_time_dt])
     fig.update_yaxes(range=[30,350], row=1, col=1)
+    fig.update_layout(legend=dict(x=0.01, y=0.99,bgcolor='rgba(255,255,255,0.7)',
+                                  tracegroupgap=110,bordercolor="Black",borderwidth=1,))
     #fig.update_layout(transition={'duration': 500})
 
-    # Add the cgm
-    if pd_cgm_json :
-        pd_cgm = pd.read_json(pd_cgm_json)
-
-        cgm_plot = GetPlotCGM(pd_cgm,start_time_dt,end_time_dt)
-        fig.append_trace(cgm_plot,1,1)
-
-    # Add the smbg plot
-    if pd_smbg_json :
+    # Add the smbg plot - deprecated!
+    if False and pd_smbg_json :
         smbg_plot = GetPlotSMBG(pd_smbg,start_time_dt,end_time_dt)
         fig.append_trace(smbg_plot,1,1)
 
@@ -437,5 +437,12 @@ def doDayPlot(pd_smbg_json,active_profile_json,table_ed,table_fix,table_basal,da
         fig.append_trace(plot,1,1)
     for plot in plots[1] :
         fig.append_trace(plot,2,1)
+
+    # Add the cgm
+    if pd_cgm_json :
+        pd_cgm = pd.read_json(pd_cgm_json)
+
+        cgm_plot = GetPlotCGM(pd_cgm,start_time_dt,end_time_dt)
+        fig.append_trace(cgm_plot,1,1)
 
     return fig

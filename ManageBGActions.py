@@ -48,6 +48,7 @@ def GetSuspendPlot(the_userprofile,containers,start_time_dt,end_time_dt) :
                     'name':'%s Suspend, %.0f min'%(timestr,(c.iov_1_utc-c.iov_0_utc)/60.),
                     'mode': 'lines',
                     'line': {'color':'black', 'width':100},
+                    'showlegend':False,
                     }
         ret_plots.append(tmp_plot)
 
@@ -66,7 +67,7 @@ def GetBGMeasurementsFromTable(containers) :
     return {'x': bgs_x,
             'y': bgs_y,
             'type':'scatter',
-            'name':'BGs from table',
+            'name':'Meter Readings',
             'mode': 'markers',
             'marker':{'color':ColorScheme.Transparent,'size':10,'line':{'width':2,'color':ColorScheme.MeterData}},
             }
@@ -148,6 +149,7 @@ def GetDeltaPlots(the_userprofile,containers,start_time_dt64,end_time_dt64) :
                     'stackgroup':stackgroup,
                     'mode': 'none',
                     'fillcolor':the_color,
+                    'showlegend': False,
                     }
 
         ret_plots.append(tmp_plot)
@@ -157,7 +159,8 @@ def GetDeltaPlots(the_userprofile,containers,start_time_dt64,end_time_dt64) :
                 'type':'scatter',
                 'name':'Net '+u"\u0394"+'BG',
                 'mode': 'lines',
-                'line': {'color':'black', 'width':2}
+                'line': {'color':'black', 'width':2},
+                'showlegend':False,
                 }
     ret_plots.append(net_line)
 
