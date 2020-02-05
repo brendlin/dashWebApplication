@@ -337,7 +337,8 @@ def update_dropdown(profiles_from_data_json,custom_profiles_json,analysis_mode,p
 
     for each_profile in profiles_from_data_json.split('###') :
         key,value = each_profile.split('$$$')
-        key_short = 'profile from %s'%(datetime.datetime.strptime(key,'%Y-%m-%dT%H:%M:%S').strftime('%Y-%m-%d'))
+        the_datetime = datetime.datetime.strptime(key,'%Y-%m-%dT%H:%M:%S')
+        key_short = 'profile from %s'%(the_datetime.strftime('%Y-%m-%d'))
 
         # just a little bit of disambiguation in case values are identical:
         value = value.replace('}',',"key":"%s"}'%(key))
@@ -346,7 +347,30 @@ def update_dropdown(profiles_from_data_json,custom_profiles_json,analysis_mode,p
             key_short = 'A generic user profile'
             value_generic_userprofile = value
 
-        options.append({'label':key_short,'value':value})
+        # If there were multiple changes within one hour, pick only one.
+        doSkip = False
+        for index in range(len(options)) :
+            time_diff = (the_datetime - options[index]['datetime']).total_seconds()
+            # if >24 hour separation, keep both
+            if abs(time_diff) > 60*60*24 :
+                continue
+            # keep the newer one, if within 1 hour
+            if 0 < time_diff and time_diff < 60*60 :
+                options.pop(index)
+            elif 0 > time_diff and time_diff > -60*60 :
+                doSkip = True
+            # if < 24 and > 1 hour separation, keep both and relabel
+            else :
+                key_short = 'profile from %s'%(the_datetime.strftime('%Y-%m-%d %H:%M'))
+                options[index]['label'] = 'profile from %s'%(options[index]['datetime'].strftime('%Y-%m-%d %H:%M'))
+
+        if doSkip :
+            continue
+
+        options.append({'label':key_short,'value':value,'datetime':the_datetime})
+
+    for i in range(len(options)) :
+        options[i].pop('datetime')
 
     if analysis_mode == 'sandbox' :
         # return options, value to display, last-status value

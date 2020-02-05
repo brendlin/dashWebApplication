@@ -184,7 +184,8 @@ def UpdateDerivedTable(table,insulin_decay_time):
         i_offset = (i+offset)%48
 
         try :
-            basal48.append( round( liver[i_offset]/float(sens[i]), 1) )
+            # round to the nearest 0.25
+            basal48.append( round( 40*liver[i_offset]/float(sens[i])) /40. )
         except (TypeError, ZeroDivisionError) as e:
             basal48.append('ERR')
 
