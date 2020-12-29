@@ -19,6 +19,11 @@ from dashing_demo_app import app
 application = app.server
 ```
 
+A note on the pythonAnywhere disk filling up:
+========================
+In case your pythonAnywhere account is filling up, you can remove the pip folder in the `.cache` directory, which somehow is huge!
+In the future, you can try using the `pip install --no-cache-dir` option in order to avoid this issue in the first place.
+
 Running locally
 ========================
 
