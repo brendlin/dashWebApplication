@@ -3,7 +3,7 @@ from BGModel.BGActionClasses import *
 import datetime
 import time
 import pandas as pd
-from ColorSchemes import ColorScheme
+from .ColorSchemes import ColorScheme
 
 #------------------------------------------------------------------
 def GetBasals(basals,the_userprofile,start_time_dt64,end_time_dt64,input_containers) :

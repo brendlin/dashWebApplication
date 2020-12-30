@@ -2,7 +2,7 @@ import sys
 import copy
 from dash_table import DataTable
 from BGModel import Settings
-from ColorSchemes import ColorScheme
+from .ColorSchemes import ColorScheme
 
 #
 # Set up the table columns, and the "vanilla" settings

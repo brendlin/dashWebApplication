@@ -1,3 +1,4 @@
+import os
 import sys
 import pandas as pd
 import numpy as np
@@ -7,7 +8,9 @@ import datetime
 import math
 import time
 
-import ManageSettings
+from .ManageSettings import getGenericUserProfile, LoadFromJsonData
+
+this_path = os.path.dirname(__file__)
 
 #
 # How we parse the input file contents
@@ -39,12 +42,12 @@ def process_input_file(contents, filename):
 def LoadNewFile(contents, name) :
     text_outputs = []
 
-    generic_profile = ['1970-01-01T00:00:01',ManageSettings.getGenericUserProfile()]
+    generic_profile = ['1970-01-01T00:00:01',getGenericUserProfile()]
     generic_profile_bundled = '$$$'.join([generic_profile[0],generic_profile[1].toJson()])
 
     if contents is None:
         # Use the default file
-        pd_all = pd.read_json('download.json')
+        pd_all = pd.read_json(this_path+'/bgData/download.json')
         status = 'Using default file.'
 
     else :
@@ -106,7 +109,7 @@ def LoadNewFile(contents, name) :
 
     # These are classes
     # all_profiles is a list of [date,profile]
-    all_profiles, settings_basal = ManageSettings.LoadFromJsonData(pd_all)
+    all_profiles, settings_basal = LoadFromJsonData(pd_all)
     all_profiles.insert(0,generic_profile)
     last_profile_bundled = '$$$'.join([all_profiles[-1][0],all_profiles[-1][1].toJson()])
 
@@ -123,9 +126,10 @@ def LoadLibreFile(contents, name) :
 
     if contents is None:
         # Use the default file
-        pd_all = pd.read_csv('libre.csv')
+        libre_filename = this_path+'/bgData/libre.txt'
+        pd_all = pd.read_csv(libre_filename)
         while len(pd_all.columns) == 1 :
-            pd_all = pd.read_csv('libre.csv',skiprows=1,sep='\t',lineterminator='\n')
+            pd_all = pd.read_csv(libre_filename,skiprows=1,sep='\t',lineterminator='\n')
         status = 'Using default libre file.'
 
     else :

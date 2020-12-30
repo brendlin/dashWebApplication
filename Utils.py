@@ -2,7 +2,7 @@
 import datetime
 import json
 import plotly.graph_objects as go
-from ColorSchemes import ColorScheme
+from .ColorSchemes import ColorScheme
 from BGModel import Settings
 
 # These should be kept const

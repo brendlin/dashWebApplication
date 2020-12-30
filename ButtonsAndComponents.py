@@ -2,7 +2,7 @@
 import dash_core_components as dcc
 import dash_html_components as html
 
-import Utils
+from .Utils import sandbox_date
 
 upload_data_button = html.Button('Upload from Tidepool',
                                  style={'width':'95%','display':'table-cell'},
@@ -36,10 +36,10 @@ analy_mode_dropdown = dcc.Dropdown(id='analysis-mode-dropdown',
                                    )
 
 date_picker = dcc.DatePickerSingle(id='my-date-picker-single',
-                                   min_date_allowed=Utils.sandbox_date,
-                                   max_date_allowed=Utils.sandbox_date,
-                                   initial_visible_month=Utils.sandbox_date,
-                                   date=Utils.sandbox_date,
+                                   min_date_allowed=sandbox_date,
+                                   max_date_allowed=sandbox_date,
+                                   initial_visible_month=sandbox_date,
+                                   date=sandbox_date,
                                    disabled=True,
                                    )
 

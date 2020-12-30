@@ -1,5 +1,5 @@
 from BGModel import Settings
-import Utils
+from .Utils import sandbox_date
 import datetime
 import sys
 
@@ -128,7 +128,7 @@ def GetProgrammedBasalsInRange(basals,start_time_dt,end_time_dt) :
     if (not current_basal) :
         out_basal = Settings.UserSetting('Basal')
         timeOfDay_hr = 0
-        out_basal.AddSettingToSnapshot(Utils.sandbox_date.replace('01-02','01-01'),timeOfDay_hr,1.0)
+        out_basal.AddSettingToSnapshot(sandbox_date.replace('01-02','01-01'),timeOfDay_hr,1.0)
         return out_basal
 
     # return the last basal before the st_oneDayBefore, plus anything that was started

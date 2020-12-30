@@ -11,11 +11,15 @@ import json
 from dash.exceptions import PreventUpdate
 import plotly.graph_objects as go
 
-import Utils
+from .Utils import sandbox_date, sandbox_date_end, GetDayBeginningAndEnd_dt, AddTargetBands
 from BGModel import Settings
-from ColorSchemes import ColorScheme
-import ManageBGActions
-import ContainersTableFunctions
+from .ColorSchemes import ColorScheme
+from .ManageBGActions import (
+    GetPredictionPlot,GetSuspendPlot,GetDeltaPlots,GetBGMeasurementsFromTable,GetBasals
+)
+from .ContainersTableFunctions import (
+    tablefToBasalRates,ConvertContainerTablesToActiveList_Tablef,tablefToContainers
+)
 
 def GetPlotSMBG(pd_smbg,start_time_dt,end_time_dt) :
 
@@ -137,21 +141,21 @@ def GetAnalysisPlots(pd_smbg,basals,containers,the_userprofile,start_time_dt,end
     return_plots = [[],[]]
 
     # prediction plot
-    prediction_plot = ManageBGActions.GetPredictionPlot(the_userprofile,containers,start_time_dt,end_time_dt)
+    prediction_plot = GetPredictionPlot(the_userprofile,containers,start_time_dt,end_time_dt)
     return_plots[0].append(prediction_plot)
 
     # suspend (a plot for now)
-    suspends = ManageBGActions.GetSuspendPlot(the_userprofile,containers,start_time_dt,end_time_dt)
+    suspends = GetSuspendPlot(the_userprofile,containers,start_time_dt,end_time_dt)
     for plot in suspends :
         return_plots[1].append(plot)
 
     # delta plots
-    delta_plots = ManageBGActions.GetDeltaPlots(the_userprofile,containers,start_time_dt,end_time_dt)
+    delta_plots = GetDeltaPlots(the_userprofile,containers,start_time_dt,end_time_dt)
     for plot in delta_plots :
         return_plots[1].append(plot)
 
     # BG measurements from the table:
-    return_plots[0].append(ManageBGActions.GetBGMeasurementsFromTable(containers))
+    return_plots[0].append(GetBGMeasurementsFromTable(containers))
 
     return return_plots
 
@@ -392,11 +396,11 @@ def doDayPlot(pd_smbg_json,active_profile_json,table_ed,table_fix,table_basal,da
     pd_smbg = pd.read_json(pd_smbg_json)
 
     if isSandbox :
-        start_time_dt = datetime.datetime.strptime(Utils.sandbox_date,'%Y-%m-%dT%H:%M:%S')
-        end_time_dt   = datetime.datetime.strptime(Utils.sandbox_date_end,'%Y-%m-%dT%H:%M:%S')
+        start_time_dt = datetime.datetime.strptime(sandbox_date,'%Y-%m-%dT%H:%M:%S')
+        end_time_dt   = datetime.datetime.strptime(sandbox_date_end,'%Y-%m-%dT%H:%M:%S')
 
     else :
-        start_time_dt,end_time_dt = Utils.GetDayBeginningAndEnd_dt(date)
+        start_time_dt,end_time_dt = GetDayBeginningAndEnd_dt(date)
 
     fig = make_subplots(rows=2, cols=1,shared_xaxes=True,vertical_spacing=0.02)
     UpdateLayout(fig)
@@ -412,24 +416,24 @@ def doDayPlot(pd_smbg_json,active_profile_json,table_ed,table_fix,table_basal,da
         fig.append_trace(smbg_plot,1,1)
 
     # After this point, we assume we are doing the full analysis.
-    basals = ContainersTableFunctions.tablefToBasalRates(table_basal)
+    basals = tablefToBasalRates(table_basal)
 
     active_profile = Settings.TrueUserProfile.fromJson(active_profile_json)
     pd_basal = pd.read_json(pd_basal_json)
 
     # Add the "good range" bands
-    Utils.AddTargetBands(fig)
+    AddTargetBands(fig)
 
     # load containers, and check if they line up with the date!
 
-    active_containers_tablef = ContainersTableFunctions.ConvertContainerTablesToActiveList_Tablef(table_ed,table_fix)
+    active_containers_tablef = ConvertContainerTablesToActiveList_Tablef(table_ed,table_fix)
     for c in active_containers_tablef :
         if (c.get('day_tag',None) and start_time_dt.strftime('%Y-%m-%d') not in c['day_tag']) :
             #print('skipping this update')
             raise PreventUpdate
-    active_containers = ContainersTableFunctions.tablefToContainers(active_containers_tablef,date)
+    active_containers = tablefToContainers(active_containers_tablef,date)
     # we already made fatty events, so do not re-make them here!
-    active_containers += ManageBGActions.GetBasals(basals,active_profile,start_time_dt,end_time_dt,active_containers)
+    active_containers += GetBasals(basals,active_profile,start_time_dt,end_time_dt,active_containers)
 
     for c in active_containers :
         if c.IsExercise() :

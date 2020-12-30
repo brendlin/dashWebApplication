@@ -1,3 +1,6 @@
 [submodule "BGModel"]
 	path = BGModel
 	url = ../BGModel
+[submodule "bgData"]
+	path = bgData
+	url = ../bgData

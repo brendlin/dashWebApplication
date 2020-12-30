@@ -1,12 +1,6 @@
 
 # A very simple Flask Hello World app for you to get started with...
 
-#from flask import Flask
-#app = Flask(__name__)
-#@app.route('/')
-#def hello_world():
-#    return 'Hello from Flask! (Kurt)'
-
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
@@ -22,15 +16,43 @@ import plotly
 import json
 
 # Tools
-import ManagePlots
-import LoadNewFile
-import SettingsTableFunctions
-import ContainersTableFunctions
-import ManageBGActions
-import ManageSettings
-import Utils
-from ColorSchemes import ColorScheme
-import ButtonsAndComponents as comps
+from .ManagePlots import doOverview, doDayPlot, doCGMAnalysis
+from .LoadNewFile import LoadNewFile, LoadLibreFile
+from .SettingsTableFunctions import UpdateBaseTable, UpdateDerivedTable, ConvertBaseTableToProfile
+from .SettingsTableFunctions import base_settings_table, derived_settings_table
+from .ContainersTableFunctions import (
+    UpdateContainerTable,
+    UpdateUnits,
+    container_opts,
+    container_table,
+    container_table_units,
+    container_table_fixed,
+    container_table_fixed_units,
+    container_table_basal,
+) 
+from .ContainersTableFunctions import (
+    container_opts,
+    container_table,
+    container_table_units,
+    container_table_fixed,
+    container_table_fixed_units,
+    container_table_basal,
+)
+from .ManageBGActions import GetContainers_Tablef, FormatTimeString
+from .ManageSettings import GetProgrammedBasalsInRange
+from .Utils import sandbox_date, GetDayBeginningAndEnd_dt, WrapUpDayContainers
+from .ColorSchemes import ColorScheme
+from .ButtonsAndComponents import (
+    upload_data,
+    upload_libre,
+    analy_mode_dropdown,
+    date_picker,
+    containers_dropdown,
+    add_rows,
+    main_graph,
+    allow_insulin,
+    storage,
+)
 
 # BG Classes
 from BGModel import BGActionClasses
@@ -39,12 +61,15 @@ from BGModel import Settings
 # needed for callbacks
 from dash.dependencies import Input, Output, State
 
-external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+from app import app
+# if __name__ == '__main__':
+#     # for deployment, pass app.server (which is the actual flask app) to WSGI etc
+#     app = dash.Dash(external_stylesheets=external_stylesheets)
+# else :
+#     # If this is a sub-page as part of a larger website.
+#     from app import app
 
-# for deployment, pass app.server (which is the actual flask app) to WSGI etc
-app = dash.Dash(external_stylesheets=external_stylesheets)
-
-app.layout = html.Div(
+layout = html.Div(
     children=[
 
         html.H5(children='Modeling blood glucose and the effects of insulin.'),
@@ -52,10 +77,10 @@ app.layout = html.Div(
         #html.Div(children='''The following works with Tidepool and Medtronic 551.'''),
 
         html.Div(
-            [html.Div([comps.upload_data],
+            [html.Div([upload_data],
                       style={'display':'table-cell','width':'25%'}),
              html.Div(id='uploaded-input-data-status',children=None,style={'display':'table-cell','width':'25%','align':'left'}),
-             html.Div([comps.upload_libre],
+             html.Div([upload_libre],
                       style={'display':'table-cell','width':'25%'}),
              html.Div(id='uploaded-libre-status',children=None,style={'display':'table-cell','width':'25%','align':'left'}),
              ],
@@ -65,19 +90,19 @@ app.layout = html.Div(
         # Analysis picker and Events picker Div
         html.Div(
             [html.Div(['''Pick an analysis: ''',
-                       comps.analy_mode_dropdown,
+                       analy_mode_dropdown,
                        # use the 'height' below to control the height of this particular row
                        html.Div(style={'display':'inline-block','width':'10px','height':'42px','verticalAlign':'middle'}),
-                       html.Div(['''Pick a date: ''',comps.date_picker,],id='date-related-div',style={'display':'none'},),
+                       html.Div(['''Pick a date: ''',date_picker,],id='date-related-div',style={'display':'none'},),
                        ],
                       className='seven columns',
                       #style={'display': 'inline-block','verticalAlign':'middle'},
                       ),
              html.Div(
                     [html.Div(['''Events: ''',
-                               comps.containers_dropdown,
+                               containers_dropdown,
                                html.Div(style={'display':'inline-block','width':'10px','height':'42px','verticalAlign':'middle'}),
-                               comps.add_rows,
+                               add_rows,
                                ],
                               style={'display':'table-cell','verticalAlign':'middle'},
                               ),
@@ -91,18 +116,18 @@ app.layout = html.Div(
 
         # Graph and Containers Div
         html.Div(
-            [html.Div([comps.main_graph,],
+            [html.Div([main_graph,],
                       className='seven columns',),
              html.Div(
-                    [comps.allow_insulin,
+                    [allow_insulin,
                      html.P('Food, Fatty events:',style={'margin-bottom':'0px','margin-top':'10px'}),
-                     html.Div(ContainersTableFunctions.container_table,style={'display':'table-cell'}),
-                     html.Div(ContainersTableFunctions.container_table_units,style={'display':'table-cell'}),
+                     html.Div(container_table,style={'display':'table-cell'}),
+                     html.Div(container_table_units,style={'display':'table-cell'}),
                      html.P('Insulin, BG measurements, Temp basals, etc:',style={'margin-bottom':'0px','margin-top':'10px'}),
-                     html.Div(ContainersTableFunctions.container_table_fixed,style={'display':'table-cell'}),
-                     html.Div(ContainersTableFunctions.container_table_fixed_units,style={'display':'table-cell'}),
+                     html.Div(container_table_fixed,style={'display':'table-cell'}),
+                     html.Div(container_table_fixed_units,style={'display':'table-cell'}),
                      html.P('Active basal schedule(s):',style={'margin-bottom':'0px','margin-top':'10px'}),
-                     html.Div(ContainersTableFunctions.container_table_basal,style={'display':'table-cell'}),
+                     html.Div(container_table_basal,style={'display':'table-cell'}),
                      ],
                     className='five columns',
                     style={'height':'400px','maxHeight': '400px', 'overflow': 'scroll','border-style':'solid',
@@ -128,8 +153,8 @@ app.layout = html.Div(
             style={'height':'50px','display':'table','width':'100%'},
             ),
 
-        SettingsTableFunctions.base_settings_table,
-        SettingsTableFunctions.derived_settings_table,
+        base_settings_table,
+        derived_settings_table,
 
 
         dcc.Markdown(children='''\* Units: "BG" stands for mg/dL.
@@ -142,7 +167,7 @@ app.layout = html.Div(
                      ),
 
         # here is where all the hidden components get added
-        *comps.storage,
+        *storage,
         ] # html.Div Children
     ) # html.Div
 
@@ -161,7 +186,7 @@ app.layout = html.Div(
               [State('upload-data', 'filename')])
 def update_file(contents, name):
 
-    return LoadNewFile.LoadNewFile(contents, name)
+    return LoadNewFile(contents, name)
 
 #
 # Change date-picker (based on upload-smbg-panda)
@@ -211,7 +236,7 @@ def update_date_picker(pd_smbg_json,analysis_mode,min_date_old,max_date_old,mont
               [State('upload-libre', 'filename')])
 def update_file(contents, name):
 
-    return LoadNewFile.LoadLibreFile(contents, name)
+    return LoadLibreFile(contents, name)
 
 #
 # Update the plot
@@ -235,20 +260,20 @@ def update_plot(pd_smbg_json,active_profile_json,table_ed,table_fix,table_basal,
         raise PreventUpdate
 
     if (analysis_mode == 'data-overview') :
-       return ManagePlots.doOverview(pd_smbg_json,pd_cgm_json)
+       return doOverview(pd_smbg_json,pd_cgm_json)
 
     if analysis_mode in ['daily-analysis','sandbox'] :
         if not table_basal :
             raise PreventUpdate
 
     if (analysis_mode == 'daily-analysis') :
-        return ManagePlots.doDayPlot(pd_smbg_json,active_profile_json,table_ed,table_fix,table_basal,date,pd_cgm_json,pd_basal_json)
+        return doDayPlot(pd_smbg_json,active_profile_json,table_ed,table_fix,table_basal,date,pd_cgm_json,pd_basal_json)
 
     if (analysis_mode == 'sandbox') :
-        return ManagePlots.doDayPlot(pd_smbg_json,active_profile_json,table_ed,table_fix,table_basal,date,pd_cgm_json,pd_basal_json,isSandbox=True)
+        return doDayPlot(pd_smbg_json,active_profile_json,table_ed,table_fix,table_basal,date,pd_cgm_json,pd_basal_json,isSandbox=True)
 
     if (analysis_mode == 'cgm-plot') :
-        return ManagePlots.doCGMAnalysis(pd_smbg_json,pd_cgm_json)
+        return doCGMAnalysis(pd_smbg_json,pd_cgm_json)
 
     return {}
 
@@ -286,24 +311,24 @@ def make_day_containers(analysis_mode,date,pd_smbg_json,basals_json,pd_cont_json
     active_profile = Settings.TrueUserProfile.fromJson(bwz_profile_json.split('$$$')[1])
     pd_basal = pd.read_json(pd_basal_json)
 
-    tmp_date = Utils.sandbox_date if (analysis_mode == 'sandbox') else date
-    start_time_dt,end_time_dt = Utils.GetDayBeginningAndEnd_dt(tmp_date)
+    tmp_date = sandbox_date if (analysis_mode == 'sandbox') else date
+    start_time_dt,end_time_dt = GetDayBeginningAndEnd_dt(tmp_date)
 
     # Get all the basal settings for this particular day
     basals = Settings.UserSetting.fromJson(basals_json)
-    basals = ManageSettings.GetProgrammedBasalsInRange(basals,start_time_dt,end_time_dt)
+    basals = GetProgrammedBasalsInRange(basals,start_time_dt,end_time_dt)
 
-    bwz_conts_Tablef = ManageBGActions.GetContainers_Tablef(pd_smbg,pd_cont,basals,active_profile,start_time_dt,end_time_dt,pd_basal)
+    bwz_conts_Tablef = GetContainers_Tablef(pd_smbg,pd_cont,basals,active_profile,start_time_dt,end_time_dt,pd_basal)
 
     # sandbox mode: Add a BG measurement at the beginning so that the plot populates.
     if analysis_mode == 'sandbox' and len(bwz_conts_Tablef) == 2 :
         bwz_conts_Tablef.append({'class':'BGMeasurement','magnitude':115,'hr':'hr','duration_hr':'-',
-                                 'iov_0_str':ManageBGActions.FormatTimeString(Utils.sandbox_date)})
+                                 'iov_0_str':FormatTimeString(sandbox_date)})
 
     the_time = start_time_dt.strftime('%Y-%m-%d')
     the_name = '%s BWZ Inputs'%(the_time)
     the_name_time_tagged = '@%s BWZ Inputs'%(the_time)
-    bwz_conts_json = Utils.WrapUpDayContainers(the_name_time_tagged,bwz_conts_Tablef,basals)
+    bwz_conts_json = WrapUpDayContainers(the_name_time_tagged,bwz_conts_Tablef,basals)
 
     if the_name not in list(o['label'] for o in options) :
         options.append({'label':the_name,'value':bwz_conts_json})
@@ -408,7 +433,7 @@ def update_dropdown(current_value,analysis_mode) :
               [Input('profiles-dropdown', 'value')])
 def update_base_settings(new_profile_selected_from_dropdown):
 
-    return SettingsTableFunctions.UpdateBaseTable(new_profile_selected_from_dropdown)
+    return UpdateBaseTable(new_profile_selected_from_dropdown)
 
 #
 # Update InsulinTa
@@ -450,7 +475,7 @@ def update_derived_table(table,ta):
     except ValueError :
         raise PreventUpdate
 
-    return SettingsTableFunctions.UpdateDerivedTable(table,ta)
+    return UpdateDerivedTable(table,ta)
 
 
 #
@@ -470,7 +495,7 @@ def update_active_profile(table,ta,tf):
     except ValueError :
         raise PreventUpdate
 
-    return SettingsTableFunctions.ConvertBaseTableToProfile(table,ta,tf)
+    return ConvertBaseTableToProfile(table,ta,tf)
 
 #
 # Populate container tables (or add new rows)
@@ -498,7 +523,7 @@ def make_container_tables(n_clicks, containers_selected_from_dropdown,
     if not dash.callback_context.triggered:
         raise PreventUpdate
 
-    tmp_date = Utils.sandbox_date if (analysis_mode == 'sandbox') else date
+    tmp_date = sandbox_date if (analysis_mode == 'sandbox') else date
 
     # If the user requested a new row:
     if (n_clicks > 0) and ('n_clicks' in dash.callback_context.triggered[0]['prop_id']) :
@@ -508,7 +533,7 @@ def make_container_tables(n_clicks, containers_selected_from_dropdown,
         if 'YYYY' in rows_ed[-1]['iov_0_str'] :
             next['iov_0_str'] = rows_ed[-1]['iov_0_str']
         elif analysis_mode == 'sandbox' :
-            next['iov_0_str'] = Utils.sandbox_date.split(' ')[0].split('T')[0]+' 04:00'
+            next['iov_0_str'] = sandbox_date.split(' ')[0].split('T')[0]+' 04:00'
         else :
             next['iov_0_str'] = date.split(' ')[0].split('T')[0]+' 04:00'
         next['hr'] = 'hr'
@@ -516,7 +541,7 @@ def make_container_tables(n_clicks, containers_selected_from_dropdown,
         return rows_ed, rows_fix, rows_basal
 
     # Otherwise, it was a new dropdown:
-    return ContainersTableFunctions.UpdateContainerTable(containers_selected_from_dropdown,tmp_date)
+    return UpdateContainerTable(containers_selected_from_dropdown,tmp_date)
 
 #
 # Update units table to reflect container table
@@ -525,13 +550,13 @@ def make_container_tables(n_clicks, containers_selected_from_dropdown,
               [Input('container-table-editable','data')],
               )
 def update_units_editable(rows) :
-    return ContainersTableFunctions.UpdateUnits(rows)
+    return UpdateUnits(rows)
 
 @app.callback(Output('container-table-fixed-units', 'data'),
               [Input('container-table-fixed','data')],
               )
 def update_units_fixed(rows) :
-    return ContainersTableFunctions.UpdateUnits(rows)
+    return UpdateUnits(rows)
 
 #
 # Allow "fixed" containers to be edited
@@ -544,7 +569,7 @@ def update_units_fixed(rows) :
 def allow_insulin_edits(allow_bool) :
 
     container_opts = []
-    for opt in ContainersTableFunctions.container_opts :
+    for opt in container_opts :
         container_opts.append(opt)
 
     if allow_bool :
@@ -558,9 +583,3 @@ def allow_insulin_edits(allow_bool) :
                    ]
 
     return bool(allow_bool), conditional
-
-app.title = 'Kurt Webpage'
-
-# This is apparently okay to deploy too.
-if __name__ == '__main__':
-    app.run_server(debug=True)
