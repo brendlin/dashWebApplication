@@ -5,4 +5,7 @@
 
 import dash
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-app = dash.Dash(external_stylesheets=external_stylesheets)
+
+# Note that you need __name__ here, otherwise the production version
+# cannot find the assets directory.
+app = dash.Dash(__name__,external_stylesheets=external_stylesheets)
