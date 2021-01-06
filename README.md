@@ -17,7 +17,9 @@ Next, you have to set up the app on pythonAnywhere:
 ln -s kurtbrendlinger_pythonanywhere_com_wsgi.py /var/www/kurtbrendlinger_pythonanywhere_com_wsgi.py
 ```
  - Don't forget to make sure that the "WSGI configuration file" is set to this path.
- - Finally, your *static files* are the ones (like the favicon and the spinner) are in the `assets` directory. In the PythonAnywhere web dashboard, make sure to specify `$PATH_TO/dashWebApplication/assets` as your static file path.
+ - Finally, your *static files* are the ones (like the favicon and the spinner) are in the `assets` directory. In the PythonAnywhere web dashboard, make sure to:
+    - Link (or copy) the assets you want into the `$HOME/assets` directory (this is because your *working directory* is $HOME)
+    - specify `$HOME/assets` as your static file path.
  - You can also specify the css file that you use as a static file -- presumably this will speed up the loading.
 
 A note on the pythonAnywhere disk filling up:
