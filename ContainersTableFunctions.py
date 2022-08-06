@@ -2,12 +2,10 @@
 from dash_table import DataTable
 import json
 import datetime
-import Utils
+from .Utils import GetDayBeginningAndEnd_dt, UnWrapDayContainers
 from BGModel.BGActionClasses import *
 from BGModel import Settings
-from ColorSchemes import ColorScheme
-
-import ManageSettings
+from .ColorSchemes import ColorScheme
 
 columns = [['IsBWZ','IsBWZ'],
            ['class','Event type'],
@@ -118,13 +116,13 @@ def UpdateContainerTable(the_containers_json,date) :
         out_table_editable.append(add_an_event)
         return out_table_editable, out_table_fixed, out_table_basals
 
-    the_date,containers,basals = Utils.UnWrapDayContainers(the_containers_json)
+    the_date,containers,basals = UnWrapDayContainers(the_containers_json)
     the_date = the_date.replace('@','').replace('BWZ Inputs','').rstrip()
 
     fixed_conts = ['BasalInsulin','LiverBasalGlucose','BGMeasurement','InsulinBolus','TempBasal','Suspend']
 
     hidden = []
-    start_time_dt,end_time_dt = Utils.GetDayBeginningAndEnd_dt(date)
+    start_time_dt,end_time_dt = GetDayBeginningAndEnd_dt(date)
 
     for c in containers :
 
@@ -184,7 +182,7 @@ def tablefToContainers(conts,date) :
 
     conts_out = []
 
-    start_time_dt,end_time_dt = Utils.GetDayBeginningAndEnd_dt(date)
+    start_time_dt,end_time_dt = GetDayBeginningAndEnd_dt(date)
 
     # put all BGs last, for iov_1 calc
     def sort_BG(x) :
