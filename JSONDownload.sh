@@ -6,12 +6,12 @@
 curl -v -X POST --netrc-file token.txt https://api.tidepool.org/auth/login >& tmp.txt
 
 userid=$(cat tmp.txt | grep 'userid' | cut -d'"' -f14)
-echo userid is $userid
+echo "My tidepool userid is (if empty, something failed): ${userid}"
 
 token=$(cat tmp.txt | grep 'session\-token:' | cut -d' ' -f3)
 # For some reason there is a ^M-style return carriage that needs to be removed.
 token="${token//}"
-echo token is $token
+echo "The web token is (if empty, something failed): ${token}"
 
 curl -s -X GET -H "x-tidepool-session-token: ${token}" -H "Content-Type: application/json" "https://api.tidepool.org/data/${userid}" > ${1:-tmp.json}
 

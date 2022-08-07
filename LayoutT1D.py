@@ -573,6 +573,7 @@ def allow_insulin_edits(allow_bool) :
         container_opts.append(opt)
 
     if allow_bool :
+        container_opts += ['Add an event','Food','LiverFattyGlucose','ExerciseEffect']
         container_opts += ['InsulinBolus','TempBasal','BGMeasurement']
 
     conditional = [{'if': {'column_id': 'class',

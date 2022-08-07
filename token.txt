@@ -1,0 +1,3 @@
+machine api.tidepool.org
+  login my_login_email@gmail.com
+  password my_tidepool_password

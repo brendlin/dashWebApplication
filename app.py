@@ -8,4 +8,5 @@ external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
 # Note that you need __name__ here, otherwise the production version
 # cannot find the assets directory.
-app = dash.Dash(__name__,external_stylesheets=external_stylesheets)
+app = dash.Dash(__name__,external_stylesheets=external_stylesheets,
+                suppress_callback_exceptions=True)

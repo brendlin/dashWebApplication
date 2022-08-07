@@ -31,3 +31,11 @@ Running locally
 ========================
 
 Simply do `python3 flask_app.py` to open a debug localhost server.
+
+Getting Tidepool data:
+========================
+
+Make sure the correct username/password are indicated in token.txt. Then do:
+```
+source JSONDownload.sh
+```

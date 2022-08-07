@@ -68,7 +68,7 @@ add_rows = html.Button('Add row',
 
 allow_insulin = dcc.Checklist(id='allow-insulin',
                               options=[{'label':'Allow edits to insulin, BG measurements, temp basal, etc.','value':'allow-insulin'}],
-                              value=[]
+                              value=['allow-insulin']
                               )
 
 storage = [
