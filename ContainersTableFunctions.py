@@ -1,5 +1,5 @@
 
-from dash_table import DataTable
+from dash import dash_table
 import json
 import datetime
 from .Utils import GetDayBeginningAndEnd_dt, UnWrapDayContainers
@@ -33,8 +33,8 @@ style_colors = [{'if': {'filter_query':'{class} eq "BasalInsulin"'},'color':Colo
                 {'if': {'filter_query':'{class} eq "Food"'},'color':ColorScheme.FoodTxt},
                 ]
 
-container_table = DataTable(id='container-table-editable',
-                            columns=[{'name':i[1], 'id':i[0], 'presentation':('dropdown' if i[0] == 'class' else 'input'),'deletable': False,} for i in columns],
+container_table = dash_table.DataTable(id='container-table-editable',
+                                       columns=[{'name':i[1], 'id':i[0], 'presentation':('dropdown' if i[0] == 'class' else 'input'),'deletable': False,} for i in columns],
                             data=[],
                             editable=True,
                             # row_deletable=True,
@@ -52,7 +52,7 @@ container_table = DataTable(id='container-table-editable',
                             # dropdown_conditional has been moved to a callback (see flask_app)
                             )
 
-container_table_fixed = DataTable(id='container-table-fixed',
+container_table_fixed = dash_table.DataTable(id='container-table-fixed',
                                   columns=[{'name':i[1], 'id':i[0], 'presentation':('dropdown' if i[0] == 'class' else 'input'),'deletable': False,} for i in columns],
                                   data=[],
                                   editable=False,
@@ -81,13 +81,13 @@ columns_basal = [['ValidFrom','Valid from'],
                  ['Units','Units'],
                  ]
 
-container_table_basal = DataTable(id='container-table-basal',
+container_table_basal = dash_table.DataTable(id='container-table-basal',
                                   columns=[ {'name':i[1], 'id':i[0]} for i in columns_basal],
                                   data=[],
                                   style_cell={'height': height,'textAlign':'right','fontWeight':'bold'},
                                   )
 
-container_table_units = DataTable(id='container-table-editable-units',
+container_table_units = dash_table.DataTable(id='container-table-editable-units',
                                   columns=[{'name':'class','id':'class'},{'name':'', 'id':'unit'}],
                                   data=[],
                                   style_cell={'height': height,'border_left':'0px','textAlign':'left','fontWeight':'bold'},
@@ -95,7 +95,7 @@ container_table_units = DataTable(id='container-table-editable-units',
                                   style_data_conditional=style_colors,
                                   )
 
-container_table_fixed_units = DataTable(id='container-table-fixed-units',
+container_table_fixed_units = dash_table.DataTable(id='container-table-fixed-units',
                                         columns=[{'name':'class','id':'class'},{'name':'', 'id':'unit'}],
                                         data=[],
                                         style_cell={'height': height,'border_left':'0px','textAlign':'left','fontWeight':'bold'},

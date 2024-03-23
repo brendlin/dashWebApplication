@@ -2,8 +2,8 @@
 # A very simple Flask Hello World app for you to get started with...
 
 import dash
-import dash_core_components as dcc
-import dash_html_components as html
+from dash import dcc
+from dash import html
 from dash.exceptions import PreventUpdate
 import sys
 
@@ -11,7 +11,7 @@ import datetime
 
 import numpy as np
 import pandas as pd
-import dash_table
+from dash import dash_table
 import plotly
 import json
 
@@ -212,7 +212,7 @@ def update_date_picker(pd_smbg_json,analysis_mode,min_date_old,max_date_old,mont
     if (not pd_smbg_json) or (analysis_mode == 'sandbox') :
         return min_date_old,max_date_old,month_old,date_old,True,{'display':'none'}
 
-    pd_smbg = pd.read_json(pd_smbg_json)
+    pd_smbg = pd.DataFrame(json.loads(pd_smbg_json))
 
     # dates!
     np_smbg = np.array(pd_smbg['deviceTime'],dtype='datetime64')
@@ -306,10 +306,10 @@ def make_day_containers(analysis_mode,date,pd_smbg_json,basals_json,pd_cont_json
     if not pd_smbg_json or not pd_cont_json or not bwz_profile_json or not pd_basal_json :
         return [], None, ''
 
-    pd_smbg = pd.read_json(pd_smbg_json)
-    pd_cont = pd.read_json(pd_cont_json)
+    pd_smbg = pd.DataFrame(json.loads(pd_smbg_json))
+    pd_cont = pd.DataFrame(json.loads(pd_cont_json))
     active_profile = Settings.TrueUserProfile.fromJson(bwz_profile_json.split('$$$')[1])
-    pd_basal = pd.read_json(pd_basal_json)
+    pd_basal = pd.DataFrame(json.loads(pd_basal_json))
 
     tmp_date = sandbox_date if (analysis_mode == 'sandbox') else date
     start_time_dt,end_time_dt = GetDayBeginningAndEnd_dt(tmp_date)
