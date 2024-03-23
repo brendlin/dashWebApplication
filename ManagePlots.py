@@ -54,6 +54,7 @@ def GetSummaryPlots(pd_smbg,start_time_dt,end_time_dt) :
     # The "index" needs to be a datetime type, with unit "seconds" for some reason.
     #bgs.index = pd.to_datetime(bgs['deviceTime'], unit='s')
     bgs.index = pd.to_datetime(bgs['deviceTime'])
+    bgs = bgs[['value']]
 
     # 1-week averages (starting Sunday 11:59:59 apparently)
     # The label is misleading, so we offset it by one day to correspond with Monday labeling.
@@ -177,7 +178,7 @@ def UpdateLayout(fig) :
 
 def doOverview(pd_smbg_json,pd_cgm_json) :
 
-    pd_smbg = pd.read_json(pd_smbg_json)
+    pd_smbg = pd.DataFrame(json.loads(pd_smbg_json)) # pd.read_json(pd_smbg_json)
 
     fig = make_subplots(rows=1,cols=1,shared_xaxes=True)
     UpdateLayout(fig)
@@ -202,11 +203,11 @@ def doCGMAnalysis(pd_smbg_json,pd_cgm_json) :
     if (not pd_cgm_json) or (not pd_smbg_json) :
         return {}
 
-    pd_smbg = pd.read_json(pd_smbg_json)
+    pd_smbg = pd.DataFrame(json.loads(pd_smbg_json))
     pd_smbg = pd_smbg[pd_smbg['value'] < (350/18.01559)]
     pd_smbg = pd_smbg[pd_smbg['value'] > ( 40/18.01559)]
 
-    pd_cgm = pd.read_json(pd_cgm_json)
+    pd_cgm = pd.DataFrame(json.loads(pd_cgm_json))
     pd_cgm['deviceTime'] = pd_cgm['Time']
 
     pd_smbg['deviceTime_dt'] = pd.to_datetime(pd_smbg['deviceTime'])
@@ -393,7 +394,7 @@ def doCGMAnalysis(pd_smbg_json,pd_cgm_json) :
 
 def doDayPlot(pd_smbg_json,active_profile_json,table_ed,table_fix,table_basal,date,pd_cgm_json,pd_basal_json,isSandbox = False) :
 
-    pd_smbg = pd.read_json(pd_smbg_json)
+    pd_smbg = pd.DataFrame(json.loads(pd_smbg_json))
 
     if isSandbox :
         start_time_dt = datetime.datetime.strptime(sandbox_date,'%Y-%m-%dT%H:%M:%S')
@@ -419,7 +420,7 @@ def doDayPlot(pd_smbg_json,active_profile_json,table_ed,table_fix,table_basal,da
     basals = tablefToBasalRates(table_basal)
 
     active_profile = Settings.TrueUserProfile.fromJson(active_profile_json)
-    pd_basal = pd.read_json(pd_basal_json)
+    pd_basal = pd.DataFrame(json.loads(pd_basal_json))
 
     # Add the "good range" bands
     AddTargetBands(fig)
@@ -447,7 +448,7 @@ def doDayPlot(pd_smbg_json,active_profile_json,table_ed,table_fix,table_basal,da
 
     # Add the cgm
     if pd_cgm_json :
-        pd_cgm = pd.read_json(pd_cgm_json)
+        pd_cgm = pd.DataFrame(json.loads(pd_cgm_json))
 
         cgm_plot = GetPlotCGM(pd_cgm,start_time_dt,end_time_dt)
         fig.append_trace(cgm_plot,1,1)

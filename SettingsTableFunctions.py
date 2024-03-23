@@ -1,6 +1,6 @@
 import sys
 import copy
-from dash_table import DataTable
+from dash import dash_table
 from BGModel import Settings
 from .ColorSchemes import ColorScheme
 
@@ -56,7 +56,7 @@ for i,color in enumerate(gradient) :
                                                  'filter_query':'%.1f <= {%d} && {%d} < %.1f'%(bin_edges_der[row][i],column,column,bin_edges_der[row][i+1])},
                                           'backgroundColor':gradient[i]})
 
-tmp1 = DataTable(id='base_settings_table',
+tmp1 = dash_table.DataTable(id='base_settings_table',
                  columns=[{"name": name, "id": str(i-1), "editable": (i!= 0)} for i,name in enumerate(table_columns_base_settings)],
                  data=[],
                  style_header={'backgroundColor': ColorScheme.TableBackground,
@@ -76,7 +76,7 @@ tmp1 = DataTable(id='base_settings_table',
                  )
 base_settings_table = tmp1
 
-tmp2 = DataTable(id='derived_settings_table',
+tmp2 = dash_table.DataTable(id='derived_settings_table',
                  editable=False,
                  columns=[{"name": name, "id": str(i-1)} for i,name in enumerate(table_columns_derived_settings)],
                  data=[],
